@@ -1,0 +1,46 @@
+.booking-details-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #008080;
+    padding: 20px;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+  }
+  
+  .back-button, .parking-details-button {
+    background-color: orange;
+    border: none;
+    color: black;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-left: 10px;
+  }
+  
+  .booking-details-table {
+    width: 80%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  .booking-details-table th, .booking-details-table td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: center;
+  }
+  
+  .cancel-button {
+    background-color: orange;
+    border: none;
+    color: black;
+    padding: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+  

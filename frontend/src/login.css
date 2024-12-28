@@ -1,0 +1,78 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #008080;
+    margin: 0;
+    padding: 0;
+}
+
+.login-container {
+    width: 350px;
+    margin: 100px auto;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+h2 {
+    margin-bottom: 20px;
+    font-size: 42px;
+    color: rgb(0, 0, 0);
+}
+
+.input-group {
+    margin-bottom: 15px;
+    margin-right: 20px;
+}
+
+input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-top: 10px;
+    background-color: #f3dbd6;
+}
+
+.button-group {
+    margin-top: 20px;
+}
+
+button {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: orange;
+    color: black;
+    font-weight: bold;
+}
+
+button:hover {
+    background-color: #ffcc00;
+}
+
+.signup {
+    margin-top: 20px;
+    color: red;
+    font-weight: bold;
+}
+
+.signup p {
+    margin: 0;
+}
+
+.signup-btn {
+    padding: 10px 20px;
+    background-color: orange;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.signup-btn:hover {
+    background-color: #ffcc00;
+}

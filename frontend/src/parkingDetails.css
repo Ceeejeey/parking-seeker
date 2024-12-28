@@ -1,0 +1,48 @@
+.parking-details-container {
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+  }
+
+  .header h1{
+    font-size: 42px;
+    margin-left: 100px;
+  }
+  
+  .back-button,
+  .booking-details-button {
+    background-color: orange;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+  }
+  
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    background-color: #66B3B3;
+  }
+  
+  th {
+    background-color: #f2f2f2;
+  }
+  
+  .stop-button {
+    background-color: orange;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+  }
+  

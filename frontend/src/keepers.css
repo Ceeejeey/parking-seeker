@@ -1,0 +1,91 @@
+.keepers-container {
+    background-color: #008080; /* teal background */
+    padding: 20px;
+    height: 100vh;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+  }
+  
+  .header h1 {
+    font-size: 42px;
+    margin-left: 500px;
+
+  }
+  
+  .logout-button {
+    background-color: orange;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    color: black;
+  }
+  
+  .vehicle-count {
+    margin-top: 0;
+    width: 100%;
+    max-width: 600px;
+  }
+  
+  .row {
+    margin-bottom: 20px;
+  }
+  
+  h3 {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+  
+  .count-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .count-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .count-item p {
+    margin-bottom: 5px;
+  }
+  
+  input[type="number"] {
+    width: 50px;
+    padding: 5px;
+    font-size: 18px;
+    text-align: center;
+    background-color: pink;
+    border: none;
+    color: black;
+    border-radius: 5px;
+  }
+  
+  .details-button {
+    background-color: orange;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    color: black;
+    margin-left: 10px;
+  }
+  
+  .details-button:hover, .logout-button:hover {
+    background-color: darkorange;
+  }
+  
