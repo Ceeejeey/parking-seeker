@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import axios from 'axios'; // Make sure to install axios if you haven't
 import './login.css';
+import { useNavigate } from 'react-router-dom';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  const navigate = useNavigate();
 
   const handleBack = () => {
     window.location.href = '/home'; // Redirect to the previous page (keepers page)
@@ -30,7 +33,9 @@ const LoginPage = () => {
 
         localStorage.setItem('token', response.data.token); // On successful login, save the token in localStorage
         
-        window.location.href = '/loginHome'; // Redirect to the loginHome page
+        // Redirect to the loginHome page with token
+        navigate('/loginHome', { state: { token: response.data.token } });
+        
       } else {
         setErrorMessage('Login failed: No token received.');
       }

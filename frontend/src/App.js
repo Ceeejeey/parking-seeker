@@ -9,6 +9,8 @@ import BookingDetails from './bookingDetails';
 import LoginHome from './loginHome';
 import UserAccount from './userAccount';
 import EditUser from './editUser';
+import BookingPark from './BookingPark';
+import './App.css'; // Import your main CSS file
 
 const App = () => {
   return (
@@ -23,6 +25,7 @@ const App = () => {
         <Route path="/loginHome" element={<LoginHome />} />
         <Route path="/userAccount" element={<UserAccount />} />
         <Route path="/editUser" element={<EditUser />} />
+        <Route path="/bookingPark" element={<BookingPark />} />
       </Routes>
     </Router>
   );

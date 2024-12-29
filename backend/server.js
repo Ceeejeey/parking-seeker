@@ -7,6 +7,7 @@ const authMiddleware = require('./middleware/authMiddleware'); // Import the aut
 const parkingRoutes = require('./routes/parking');
 const bodyParser = require('body-parser');
 const keepersRoutes = require('./routes/keepers');
+const UserInfo = require('./routes/userInfo')
 
 const app = express();
 dotenv.config();
@@ -23,7 +24,8 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes); // Add authentication routes
-
+//user info route
+app.use('/api/user', UserInfo)
 // Parking space routes
 app.use('/api/parking', parkingRoutes);
 

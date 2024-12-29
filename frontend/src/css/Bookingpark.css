@@ -1,0 +1,83 @@
+/* Overall body styling */
+.container1 {
+    
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #00796b; /* Teal background color */
+  color: #ffffff; /* White text */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  text-align: center;
+  }
+  
+  /* Container styling */
+  .container {
+    background-color: #004d40; /* Darker teal for contrast */
+    padding: 20px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Add shadow for depth */
+    max-width: 400px;
+    width: 90%;
+  }
+  
+  /* Title styling */
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #ffffff;
+  }
+  
+  /* Form labels */
+  label {
+    font-size: 1rem;
+    margin-right: 10px;
+    color: #b2dfdb; /* Soft teal for text */
+  }
+  
+  /* Input styling */
+  input[type="number"] {
+    width: 50px;
+    padding: 5px;
+    border: none;
+    border-radius: 4px;
+    background-color: #ffffff;
+    color: #000;
+    text-align: center;
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+  
+  /* Button styling */
+  button {
+    background-color: #ff9800; /* Vibrant orange */
+    color: #ffffff; /* White text */
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+  
+  button:hover {
+    background-color: #e68a00; /* Slightly darker orange */
+    transform: scale(1.05); /* Slight zoom on hover */
+  }
+  
+  button:active {
+    background-color: #cc7a00; /* Even darker orange for click */
+    transform: scale(0.98); /* Shrink effect on click */
+  }
+  
+  /* Total price styling */
+  .total-price {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-top: 10px;
+    color: #ffffff;
+  }
+  
