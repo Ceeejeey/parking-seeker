@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './css/Bookingpark.css'; // Ensure this file includes the enhanced styles
+import axios from 'axios';
 
 const BookingPark = () => {
   const location = useLocation();
@@ -17,11 +18,23 @@ const BookingPark = () => {
     setPrice(hours * 100); // 100 LKR per hour
   };
 
-  const handleBooking = () => {
-    alert(
-      `Booking confirmed for ${vehicleType} by ${user?.username || 'Unknown User'}. Total price: ${price} LKR`
-    );
-    navigate('/'); // Navigate back to the home page or another relevant page
+  const handleBooking = async () => {
+    const bookingDetails = {
+      username: user?.username || 'Unknown User',
+      vehicleType,
+      duration,
+      price,
+    };
+  
+    try {
+      // Make a POST request to save the booking details
+      const response = await axios.post('http://localhost:5000/api/bookings/booking', bookingDetails);
+      alert(`Booking confirmed for ${vehicleType} by ${user?.username || 'Unknown User'}. Total price: ${price} LKR`);
+      navigate('/loginHome'); // Navigate back to the home page or another relevant page
+    } catch (error) {
+      console.error('Error saving booking:', error);
+      alert('An error occurred while saving the booking. Please try again.');
+    }
   };
 
   return (
