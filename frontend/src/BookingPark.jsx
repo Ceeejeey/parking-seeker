@@ -8,7 +8,7 @@ const BookingPark = () => {
   const navigate = useNavigate();
 
   // Extract user and vehicleType from location state
-  const { vehicleType, user } = location.state || {};
+  const { vehicleType, user, token } = location.state || {};
   const [duration, setDuration] = useState('');
   const [price, setPrice] = useState(0);
 
@@ -30,7 +30,7 @@ const BookingPark = () => {
       // Make a POST request to save the booking details
       const response = await axios.post('http://localhost:5000/api/bookings/booking', bookingDetails);
       alert(`Booking confirmed for ${vehicleType} by ${user?.username || 'Unknown User'}. Total price: ${price} LKR`);
-      navigate('/loginHome'); // Navigate back to the home page or another relevant page
+      navigate('/loginHome', { state: { vehicleType ,user ,token} }); // Navigate back to the home page or another relevant page
     } catch (error) {
       console.error('Error saving booking:', error);
       alert('An error occurred while saving the booking. Please try again.');

@@ -8,7 +8,7 @@ import userIcon from './icons/user.png';
 import myLocationIcon from './icons/my_location.png';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
-import {jwtDecode} from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 
 mapboxgl.accessToken = 'pk.eyJ1Ijoic2hhbmFrYTA1MzAiLCJhIjoiY20xdWExbDVkMGJ1YTJsc2J6bjFmaTVkNyJ9.H4sWjz4eIt0e6jeScvR5-g';
 
@@ -19,11 +19,21 @@ const HomePage = () => {
   const [vehicleType, setVehicleType] = useState('');
   const parkingRadiusCoordinates = [81.21329762709837, 8.654921177392538]; // Circle radius coordinate
   const parkingCenter = [81.21377704290875, 8.654605843273439]; // Circle center coordinate
+  const rectangleCoordinates = [
+    [81.21376106874192, 8.654654196901934],
+    [81.21382946506576, 8.654602489383553],
+    [81.21379325524725, 8.654556085194333],
+    [81.2137241883712, 8.654607792719089],
+  ];
+  const userLocation = [81.21344073102314, 8.654732439835286]; // Hardcoded user location
   const [user, setUser] = useState(null);
   const location = useLocation();
   const [error, setError] = useState(null);
-
+  const [countdown, setCountdown] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const timerRef = useRef(null);
   const { token } = location.state || {};
+
   // Fetch user data from backend
   useEffect(() => {
     const fetchUser = async () => {
@@ -32,20 +42,19 @@ const HomePage = () => {
           throw new Error('No token provided');
         }
 
-        // Decode the token to extract userId
         const decodedToken = jwtDecode(token);
-        const userId = decodedToken.userId; // Replace with the correct key used in your token payload
+        const userId = decodedToken.userId;
 
-        console.log('User ID extracted from token:', userId);
-        if (!userId) {
-          throw new Error('User ID not found in token');
-        }
-
-        // Fetch user data using the extracted userId
         const response = await axios.get(`http://localhost:5000/api/user/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` }, // Pass the token in the headers for authentication
+          headers: { Authorization: `Bearer ${token}` },
         });
-        setUser(response.data);
+        setUser((prevUser) => {
+          // Only update if the data is different
+          if (JSON.stringify(prevUser) !== JSON.stringify(response.data)) {
+            return response.data;
+          }
+          return prevUser;
+        });
       } catch (error) {
         console.error('Error fetching user data:', error);
         setError(error.message || 'An error occurred.');
@@ -53,7 +62,139 @@ const HomePage = () => {
     };
 
     fetchUser();
-  }, [token]);
+  }, [token]); // Ensure no unnecessary state changes
+
+  const startTimer = (durationInSeconds) => {
+    if (isTimerRunning) return;
+  
+    const expiryTime = new Date().getTime() + durationInSeconds * 1000;
+    localStorage.setItem('parkingTimerExpiry', expiryTime.toString());
+  
+    setCountdown(durationInSeconds);
+    setIsTimerRunning(true);
+  };
+  
+  const startSecondTimer = (durationInSeconds) => {
+    const expiryTime = new Date().getTime() + durationInSeconds * 1000;
+  
+    // Clear the first timer's localStorage
+    localStorage.removeItem('parkingTimerExpiry');
+    localStorage.setItem('secondTimerExpiry', expiryTime.toString());
+  
+    setCountdown(durationInSeconds);
+    setIsTimerRunning(true);
+  };
+  
+  const clearTimerFromLocalStorage = () => {
+    localStorage.removeItem('parkingTimerExpiry');
+    localStorage.removeItem('secondTimerExpiry');
+  };
+  
+  useEffect(() => {
+    const savedExpiry = localStorage.getItem('parkingTimerExpiry');
+    const savedSecondExpiry = localStorage.getItem('secondTimerExpiry');
+  
+    if (savedSecondExpiry) {
+      const expiryTime = parseInt(savedSecondExpiry, 10);
+      const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
+  
+      if (timeRemaining > 0) {
+        setCountdown(timeRemaining);
+        setIsTimerRunning(true);
+      } else {
+        clearTimerFromLocalStorage();
+      }
+    } else if (savedExpiry) {
+      const expiryTime = parseInt(savedExpiry, 10);
+      const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
+  
+      if (timeRemaining > 0) {
+        setCountdown(timeRemaining);
+        setIsTimerRunning(true);
+      } else {
+        clearTimerFromLocalStorage();
+      }
+    }
+  }, []);
+  
+  useEffect(() => {
+    if (isTimerRunning && countdown > 0) {
+      if (!timerRef.current) {
+        timerRef.current = setInterval(() => {
+          setCountdown((prev) => {
+            if (prev <= 1) {
+              clearTimerFromLocalStorage();
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+              setIsTimerRunning(false);
+              handleTimerExpiration();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    }
+  
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isTimerRunning, countdown]);
+  
+  const clearExistingTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current); // Stop the timer
+      timerRef.current = null; // Clear the timer reference
+    }
+    setIsTimerRunning(false); // Update timer running state
+    setCountdown(0); // Reset countdown
+    clearTimerFromLocalStorage(); // Clear expiry time from localStorage
+  };
+  
+  const handleTimerExpiration = () => {
+    const popupContent = document.createElement('div');
+    popupContent.innerHTML = `
+      <h3>Do you still want to park here?</h3>
+      <button id="yes-button">Yes</button>
+      <button id="no-button">No</button>
+    `;
+  
+    let popup;
+    if (mapRef.current) {
+      popup = new mapboxgl.Popup()
+        .setLngLat(userLocation) // Set popup at user location
+        .setDOMContent(popupContent) // Attach dynamic content
+        .addTo(mapRef.current);
+    }
+  
+    const yesButton = popupContent.querySelector('#yes-button');
+    const noButton = popupContent.querySelector('#no-button');
+  
+    const handleYesClick = () => {
+      popup?.remove(); // Remove the popup
+      startSecondTimer(3 * 60); // Start the second 3-minute timer
+    };
+  
+    const handleNoClick = async () => {
+      popup?.remove(); // Remove the popup
+      clearExistingTimer(); // Clear timer
+      try {
+        await axios.delete('http://localhost:5000/api/bookings/cancel', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        alert('Booking cancelled successfully.');
+      } catch (error) {
+        console.error('Error cancelling booking:', error);
+        alert('Failed to cancel booking.');
+      }
+    };
+  
+    yesButton.addEventListener('click', handleYesClick);
+    noButton.addEventListener('click', handleNoClick);
+  };
 
   // Helper function to generate a circle as a GeoJSON polygon
   const createCircle = (center, radiusPoint, points = 64) => {
@@ -99,27 +240,28 @@ const HomePage = () => {
   };
 
   useEffect(() => {
+
     if (!mapContainerRef.current) {
       console.error('Map container is not available.');
       return;
     }
 
     // Initialize the map
-    const map = new mapboxgl.Map({
+    mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: 'mapbox://styles/mapbox/streets-v11',
       center: parkingCenter,
-      zoom: 18, // Adjusted zoom for better visibility
+      zoom: 18,
     });
 
-    mapRef.current = map;
+    const map = mapRef.current;
 
     // Add navigation controls
     const navControl = new mapboxgl.NavigationControl();
     map.addControl(navControl, 'bottom-right');
 
     // Ensure the map is loaded before interacting with it
-    map.on('load', () => {
+    map.on('load', async () => {
       console.log('Map loaded successfully.');
 
       // Generate the circle GeoJSON data
@@ -175,8 +317,7 @@ const HomePage = () => {
 
       console.log('Parking circle and layers added.');
 
-      // Temporarily set user's location
-      const userLocation = [81.21352207019963, 8.654747184301046]; // Hardcoded user location
+
 
       // Add red marker for user's location
       new mapboxgl.Marker({ color: 'red' })
@@ -186,112 +327,265 @@ const HomePage = () => {
         )
         .addTo(map);
 
-      // Check if the user is inside the parking circle
-      const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
 
-      if (isInsideCircle) {
+      (async () => {
+        // Fetch active booking and location status
+        const activeBookingData = await fetchActiveBooking();
+        let hasActiveBooking = Array.isArray(activeBookingData) && activeBookingData.length > 0;
+
+        // Store the state in localStorage
+        localStorage.setItem('hasActiveBooking', JSON.stringify(hasActiveBooking));
+
+        const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
+
+        // If no active booking and inside circle, show the popup
+        if (isInsideCircle && !hasActiveBooking) {
+          const popupContent = document.createElement('div');
+
+          popupContent.innerHTML = `
+                <h3>Do you want to park here?</h3>
+                <button id="yes-button">Yes</button>
+                <button id="no-button">No</button>
+              `;
+
+          const popup = new mapboxgl.Popup()
+            .setLngLat(userLocation)
+            .setDOMContent(popupContent)
+            .addTo(map);
+
+          // Attach event listener to the Yes button
+          popupContent.querySelector('#yes-button').addEventListener('click', () => {
+            navigate('/bookingPark', { state: { vehicleType, user, token } });
+            localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Update localStorage
+            startTimer(2 * 60); // Start the timer
+          });
+
+          // Optionally handle the No button
+          popupContent.querySelector('#no-button').addEventListener('click', () => {
+            popup.remove(); // Close the popup if "No" is clicked
+          });
+        }
+
+        console.log('Has active booking:', hasActiveBooking);
+      })();
+
+      (async () => {
+        // Retrieve the booking state from localStorage
+        const hasActiveBooking = JSON.parse(localStorage.getItem('hasActiveBooking') || 'false');
+        const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
+
+        if (hasActiveBooking) {
+          // Directly start the timer if there's an active booking
+          startTimer(2 * 60); // 2 minutes
+        } else if (isInsideCircle) {
+          // Show popup only if there's no active booking
+          const popupContent = document.createElement('div');
+
+          popupContent.innerHTML = `
+                <h3>Do you want to park here?</h3>
+                <button id="yes-button">Yes</button>
+                <button id="no-button">No</button>
+             ` ;
+
+          const popup = new mapboxgl.Popup()
+            .setLngLat(userLocation)
+            .setDOMContent(popupContent)
+            .addTo(map);
+
+          // Attach event listener to the Yes button
+          popupContent.querySelector('#yes-button').addEventListener('click', () => {
+            navigate('/bookingPark', { state: { vehicleType, user, token } });
+            localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Set it as true after confirmation
+            startTimer(2 * 60); // Start the timer
+          });
+
+          // Optionally handle the No button
+          popupContent.querySelector('#no-button').addEventListener('click', () => {
+            popup.remove(); // Close the popup if "No" is clicked
+          });
+        }
+      })();
+
+
+
+      const activeBooking = await fetchActiveBooking();
+
+      if (activeBooking && isLocationInsidePolygon(userLocation, rectangleCoordinates)) {
         const popupContent = document.createElement('div');
-      
+
         popupContent.innerHTML = `
-          <h3>Do you want to park here?</h3>
-          <button id="yes-button">Yes</button>
-          <button id="no-button">No</button>
+          <h3>You reached the park</h3>
+          <button id="park-button">Park Here</button>
+          <button id="leave-button">Leave</button>
         `;
-      
+
         const popup = new mapboxgl.Popup()
           .setLngLat(userLocation)
           .setDOMContent(popupContent)
           .addTo(map);
-      
-        // Attach event listener to the Yes button after the popup content is rendered
-        popupContent.querySelector('#yes-button').addEventListener('click', () => {
-          navigate('/bookingPark', { state: { vehicleType ,user } });
+
+        popupContent.querySelector('#park-button').addEventListener('click', async () => {
+          try {
+            const { username, vehicleType, price, duration } = activeBooking;
+
+            await axios.post('http://localhost:5000/api/park', {
+              username,
+              vehicleType,
+              startTime: new Date(),
+              price,
+              duration,
+            });
+
+            alert('Parked successfully');
+            popup.remove();
+          } catch (error) {
+            console.error('Error parking vehicle:', error);
+            alert('Failed to park vehicle.');
+          }
         });
-      
-        // Optionally handle the No button
-        popupContent.querySelector('#no-button').addEventListener('click', () => {
-          popup.remove(); // Close the popup if "No" is clicked
+
+        popupContent.querySelector('#leave-button').addEventListener('click', () => {
+          popup.remove();
         });
       }
-      
+
+
     });
 
-    return () => map.remove();
-  }, [navigate, parkingRadiusCoordinates, parkingCenter, vehicleType, user]); // Dependency array includes vehicleType
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [vehicleType, user]); // Dependency array includes vehicleType
 
   const handleVehicleTypeChange = (event) => {
     setVehicleType(event.target.value);
   };
 
-  // Helper function to check if the user's location is inside the parking circle
-  const isLocationInsideCircle = (userLocation, center, radiusPoint) => {
-    const circleGeoJSON = createCircle(center, radiusPoint);
-    const circleCoordinates = circleGeoJSON.coordinates[0];
+  // Helper function to check if a location is inside a polygon
+  const isLocationInsidePolygon = (userLocation, polygon) => {
     const [userLon, userLat] = userLocation;
-
     let isInside = false;
 
-    // Check if the user location is inside the circle polygon
-    const x = userLon;
-    const y = userLat;
-    const polygon = circleCoordinates.map(coord => [coord[0], coord[1]]);
     const len = polygon.length;
-
     let j = len - 1;
+
     for (let i = 0; i < len; i++) {
       const [xi, yi] = polygon[i];
       const [xj, yj] = polygon[j];
       const intersect =
-        yi > y !== yj > y &&
-        x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-        if (intersect) isInside = !isInside;
-        j = i;
-      }
-  
-      return isInside;
-    };
-  
-    return (
-      <div className="homepage">
-        <div className="sidebar">
-          <div className="sidebar-icon">
-            <img
-              src={userIcon}
-              alt="User Icon"
-              className="user-icon"
-              onClick={() => navigate('/userAccount')}
-            />
-            <img src={homeIcon} alt="Home Icon" />
-            <button className="login-button" onClick={() => navigate('/login')}>
-              Log Out
-            </button>
-          </div>
-        </div>
-  
-        <div className="main-content">
-          <div ref={mapContainerRef} className="map-background"></div>
-          <div className="top-bar">
-            <div className="vehicle-type-container">
-              <select
-                className="vehicle-type"
-                value={vehicleType}
-                onChange={handleVehicleTypeChange}
-              >
-                <option value="" disabled>
-                  Vehicle Type
-                </option>
-                <option value="car">Car</option>
-                <option value="motorcycle">Motorcycle</option>
-              </select>
-            </div>
-          </div>
-          <button className="my-location-button">
-            <img src={myLocationIcon} alt="My Location" className="my-location-icon" />
+        yi > userLat !== yj > userLat &&
+        userLon < ((xj - xi) * (userLat - yi)) / (yj - yi) + xi;
+      if (intersect) isInside = !isInside;
+      j = i;
+    }
+    console.log('user is inside the park: ' + isInside)
+    return isInside;
+  };
+
+  // Check for active booking
+  const fetchActiveBooking = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/bookings/booking', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Active booking:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching active booking:', error);
+      return null;
+    }
+  };
+
+  // Helper function to check if the user's location is inside the parking circle
+  const isLocationInsideCircle = (userLocation, center, radiusPoint) => {
+    const [userLon, userLat] = userLocation;
+    const [centerLon, centerLat] = center;
+    const [radiusLon, radiusLat] = radiusPoint;
+
+    const earthRadius = 6371000; // Earth's radius in meters
+
+    const toRadians = (degrees) => (degrees * Math.PI) / 180;
+
+    const dLat = toRadians(userLat - centerLat);
+    const dLon = toRadians(userLon - centerLon);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(centerLat)) * Math.cos(toRadians(userLat)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    const distance = earthRadius * c; // Distance in meters
+
+    // Calculate radius from center to radiusPoint
+    const radiusDLat = toRadians(radiusLat - centerLat);
+    const radiusDLon = toRadians(radiusLon - centerLon);
+    const aRadius =
+      Math.sin(radiusDLat / 2) * Math.sin(radiusDLat / 2) +
+      Math.cos(toRadians(centerLat)) * Math.cos(toRadians(radiusLat)) *
+      Math.sin(radiusDLon / 2) * Math.sin(radiusDLon / 2);
+    const cRadius = 2 * Math.atan2(Math.sqrt(aRadius), Math.sqrt(1 - aRadius));
+    const radius = earthRadius * cRadius;
+
+    // Check if user's location is within the circle
+    return distance <= radius;
+  };
+ 
+
+  return (
+    <div className="homepage">
+      <div className="sidebar">
+        <div className="sidebar-icon">
+          <img
+            src={userIcon}
+            alt="User Icon"
+            className="user-icon"
+            onClick={() => navigate('/userAccount')}
+          />
+          <img src={homeIcon} alt="Home Icon" />
+          <button className="login-button" onClick={() => navigate('/login')}>
+            Log Out
           </button>
         </div>
       </div>
-    );
-  };
-  
-  export default HomePage;
-  
+
+      <div className="main-content">
+
+        <div ref={mapContainerRef} className="map-background"></div>
+
+        <div className="top-bar">
+          <div className="vehicle-type-container">
+            <select
+              className="vehicle-type"
+              value={vehicleType}
+              onChange={handleVehicleTypeChange}
+            >
+              <option value="" disabled>
+                Vehicle Type
+              </option>
+              <option value="car">Car</option>
+              <option value="motorcycle">Motorcycle</option>
+            </select>
+            {countdown > 0 && (
+              <div className="timer-display">
+                Time remaining: {Math.floor(countdown / 60)}:
+                {String(countdown % 60).padStart(2, "0")}
+              </div>
+            )}
+          </div>
+        </div>
+        <button className="my-location-button">
+          <img src={myLocationIcon} alt="My Location" className="my-location-icon" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default HomePage;
+

@@ -114,3 +114,16 @@
   width: 30px; /* Set icon size */
   height: 30px; /* Set icon size */
 }
+.timer-display {
+  position: fixed;
+  top: 20px; /* Adjust to your preference */
+  right: 20px; /* Adjust to your preference */
+  background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black background */
+  color: white; /* White text for contrast */
+  padding: 10px 15px; /* Add some padding for better aesthetics */
+  border-radius: 8px; /* Rounded corners */
+  font-size: 16px; /* Adjust font size for better readability */
+  font-weight: bold; /* Bold text */
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
+  z-index: 1000; /* Ensure it stays on top of other elements */
+}
