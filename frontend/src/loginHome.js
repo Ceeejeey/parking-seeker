@@ -32,10 +32,12 @@ const HomePage = () => {
   const [countdown, setCountdown] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const timerRef = useRef(null);
-  const { token } = location.state || {};
+  const [firstTimerEnded, setFirstTimerEnded] = useState(false);
+  const { token , bookingDetails} = location.state || {};
 
   // Fetch user data from backend
   useEffect(() => {
+    console.log('BookingDetails:', bookingDetails);
     const fetchUser = async () => {
       try {
         if (!token) {
@@ -64,137 +66,211 @@ const HomePage = () => {
     fetchUser();
   }, [token]); // Ensure no unnecessary state changes
 
-  const startTimer = (durationInSeconds) => {
-    if (isTimerRunning) return;
-  
-    const expiryTime = new Date().getTime() + durationInSeconds * 1000;
-    localStorage.setItem('parkingTimerExpiry', expiryTime.toString());
-  
-    setCountdown(durationInSeconds);
-    setIsTimerRunning(true);
+ // Function to start the first timer
+ const startTimer = (durationInSeconds) => {
+  if (isTimerRunning || firstTimerEnded) return; // Block if already running or first timer has ended
+
+  const expiryTime = new Date().getTime() + durationInSeconds * 1000;
+  localStorage.setItem('parkingTimerExpiry', expiryTime.toString());
+
+  setCountdown(durationInSeconds);
+  setIsTimerRunning(true);
+};
+
+// Function to start the second timer
+const startSecondTimer = (durationInSeconds) => {
+  const expiryTime = new Date().getTime() + durationInSeconds * 1000;
+  console.log('Starting second timer with expiry:', new Date(expiryTime));
+
+  // Clear the first timer's localStorage and set the second timer's expiry
+  localStorage.removeItem('parkingTimerExpiry');
+  localStorage.setItem('secondTimerExpiry', expiryTime.toString());
+
+  setCountdown(durationInSeconds);
+  setIsTimerRunning(true);
+};
+
+// Function to clear timers from localStorage
+const clearTimerFromLocalStorage = () => {
+  localStorage.removeItem('parkingTimerExpiry');
+  localStorage.removeItem('secondTimerExpiry');
+};
+
+// Function to handle the expiration of the first timer
+const handleFirstTimerExpiration = () => {
+  console.log('First timer expired. Showing popup...');
+  setFirstTimerEnded(true); // Block the first timer after it ends
+
+  const popupContent = document.createElement('div');
+  popupContent.innerHTML = `
+    <h3>Do you still want to park here?</h3>
+    <button id="yes-button">Yes</button>
+    <button id="no-button">No</button>
+  `;
+
+  let popup;
+  if (mapRef.current) {
+    popup = new mapboxgl.Popup()
+      .setLngLat(userLocation)
+      .setDOMContent(popupContent)
+      .addTo(mapRef.current);
+  }
+
+  const yesButton = popupContent.querySelector('#yes-button');
+  const noButton = popupContent.querySelector('#no-button');
+
+  const handleYesClick = () => {
+    popup?.remove();
+    startSecondTimer(3 * 60); // Start the second timer (3 minutes)
   };
-  
-  const startSecondTimer = (durationInSeconds) => {
-    const expiryTime = new Date().getTime() + durationInSeconds * 1000;
-  
-    // Clear the first timer's localStorage
-    localStorage.removeItem('parkingTimerExpiry');
-    localStorage.setItem('secondTimerExpiry', expiryTime.toString());
-  
-    setCountdown(durationInSeconds);
-    setIsTimerRunning(true);
+
+  const handleNoClick = async () => {
+    popup?.remove();
+    clearExistingTimer();
+
+    try {
+      await axios.delete(`http://localhost:5000/api/bookings/booking/${bookingDetails.booking._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Booking cancelled successfully.');
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      alert('Failed to cancel booking.');
+    }
   };
-  
-  const clearTimerFromLocalStorage = () => {
-    localStorage.removeItem('parkingTimerExpiry');
-    localStorage.removeItem('secondTimerExpiry');
-  };
-  
-  useEffect(() => {
-    const savedExpiry = localStorage.getItem('parkingTimerExpiry');
-    const savedSecondExpiry = localStorage.getItem('secondTimerExpiry');
-  
-    if (savedSecondExpiry) {
-      const expiryTime = parseInt(savedSecondExpiry, 10);
-      const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
-  
-      if (timeRemaining > 0) {
-        setCountdown(timeRemaining);
-        setIsTimerRunning(true);
-      } else {
-        clearTimerFromLocalStorage();
-      }
-    } else if (savedExpiry) {
-      const expiryTime = parseInt(savedExpiry, 10);
-      const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
-  
-      if (timeRemaining > 0) {
-        setCountdown(timeRemaining);
-        setIsTimerRunning(true);
-      } else {
-        clearTimerFromLocalStorage();
-      }
+
+  yesButton.addEventListener('click', handleYesClick);
+  noButton.addEventListener('click', handleNoClick);
+};
+
+// Function to handle the expiration of the second timer
+const handleSecondTimerExpiration = async () => {
+  console.log('Second timer expired. Cancelling booking...');
+  clearExistingTimer();
+
+  try {
+    await axios.delete(`http://localhost:5000/api/bookings/booking/${bookingDetails.booking._id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    alert('Second timer expired. Booking has been cancelled successfully.');
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+    alert('Failed to cancel booking after the timer expired.');
+  }
+};
+
+// Function to clear the existing timer
+const clearExistingTimer = () => {
+  if (timerRef.current) {
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+  }
+  setIsTimerRunning(false);
+  setCountdown(0);
+  clearTimerFromLocalStorage();
+};
+
+// Hook to manage the first timer
+useEffect(() => {
+  console.log('useEffect triggered for first timer.');
+
+  const savedExpiry = localStorage.getItem('parkingTimerExpiry');
+  if (savedExpiry && !firstTimerEnded) {
+    const expiryTime = parseInt(savedExpiry, 10);
+    const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
+
+    if (timeRemaining > 0) {
+      console.log('First timer is active. Time remaining:', timeRemaining);
+      setCountdown(timeRemaining);
+      setIsTimerRunning(true);
+    } else {
+      console.log('First timer expired. Clearing localStorage.');
+      clearTimerFromLocalStorage();
+      handleFirstTimerExpiration();
     }
-  }, []);
-  
-  useEffect(() => {
-    if (isTimerRunning && countdown > 0) {
-      if (!timerRef.current) {
-        timerRef.current = setInterval(() => {
-          setCountdown((prev) => {
-            if (prev <= 1) {
-              clearTimerFromLocalStorage();
-              clearInterval(timerRef.current);
-              timerRef.current = null;
-              setIsTimerRunning(false);
-              handleTimerExpiration();
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      }
-    }
-  
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [isTimerRunning, countdown]);
-  
-  const clearExistingTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current); // Stop the timer
-      timerRef.current = null; // Clear the timer reference
-    }
-    setIsTimerRunning(false); // Update timer running state
-    setCountdown(0); // Reset countdown
-    clearTimerFromLocalStorage(); // Clear expiry time from localStorage
-  };
-  
-  const handleTimerExpiration = () => {
-    const popupContent = document.createElement('div');
-    popupContent.innerHTML = `
-      <h3>Do you still want to park here?</h3>
-      <button id="yes-button">Yes</button>
-      <button id="no-button">No</button>
-    `;
-  
-    let popup;
-    if (mapRef.current) {
-      popup = new mapboxgl.Popup()
-        .setLngLat(userLocation) // Set popup at user location
-        .setDOMContent(popupContent) // Attach dynamic content
-        .addTo(mapRef.current);
-    }
-  
-    const yesButton = popupContent.querySelector('#yes-button');
-    const noButton = popupContent.querySelector('#no-button');
-  
-    const handleYesClick = () => {
-      popup?.remove(); // Remove the popup
-      startSecondTimer(3 * 60); // Start the second 3-minute timer
-    };
-  
-    const handleNoClick = async () => {
-      popup?.remove(); // Remove the popup
-      clearExistingTimer(); // Clear timer
-      try {
-        await axios.delete('http://localhost:5000/api/bookings/cancel', {
-          headers: { Authorization: `Bearer ${token}` },
+  }
+
+  if (isTimerRunning && countdown > 0 && !localStorage.getItem('secondTimerExpiry')) {
+    console.log('First timer running with countdown:', countdown);
+    if (!timerRef.current) {
+      console.log('Starting first timer...');
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          console.log('First timer countdown tick:', prev);
+          if (prev <= 1) {
+            console.log('First timer expired. Clearing timer and triggering handler.');
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+            setIsTimerRunning(false);
+
+            handleFirstTimerExpiration();
+            return 0;
+          }
+          return prev - 1;
         });
-        alert('Booking cancelled successfully.');
-      } catch (error) {
-        console.error('Error cancelling booking:', error);
-        alert('Failed to cancel booking.');
-      }
-    };
-  
-    yesButton.addEventListener('click', handleYesClick);
-    noButton.addEventListener('click', handleNoClick);
+      }, 1000);
+    }
+  }
+
+  return () => {
+    if (timerRef.current && !localStorage.getItem('secondTimerExpiry')) {
+      console.log('Cleaning up first timer on unmount or state change...');
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   };
+}, [isTimerRunning, countdown, firstTimerEnded]);
+
+// Hook to manage the second timer
+useEffect(() => {
+  console.log('useEffect triggered for second timer.');
+
+  const savedSecondExpiry = localStorage.getItem('secondTimerExpiry');
+  if (savedSecondExpiry) {
+    const expiryTime = parseInt(savedSecondExpiry, 10);
+    const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
+
+    if (timeRemaining > 0) {
+      console.log('Second timer is active. Time remaining:', timeRemaining);
+      setCountdown(timeRemaining);
+      setIsTimerRunning(true);
+    } else {
+      console.log('Second timer expired. Clearing localStorage.');
+      clearTimerFromLocalStorage();
+      handleSecondTimerExpiration();
+    }
+  }
+
+  if (isTimerRunning && countdown > 0 && localStorage.getItem('secondTimerExpiry')) {
+    console.log('Second timer running with countdown:', countdown);
+    if (!timerRef.current) {
+      console.log('Starting second timer...');
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          console.log('Second timer countdown tick:', prev);
+          if (prev <= 1) {
+            console.log('Second timer expired. Clearing timer and triggering handler.');
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+            setIsTimerRunning(false);
+
+            handleSecondTimerExpiration();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+  }
+
+  return () => {
+    if (timerRef.current && localStorage.getItem('secondTimerExpiry')) {
+      console.log('Cleaning up second timer on unmount or state change...');
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+}, [isTimerRunning, countdown]);
 
   // Helper function to generate a circle as a GeoJSON polygon
   const createCircle = (center, radiusPoint, points = 64) => {
