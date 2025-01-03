@@ -40,6 +40,31 @@ router.get('/booking', async (req, res) => {
     }
   });
 
+  //Fetch active booking details for a user
+  router.get('/details', async (req, res) => {
+    const { username } = req.query;
+  
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required to fetch booking details.' });
+    }
+  
+    try {
+      // Find active booking for the user
+      const activeBooking = await Booking.findOne({ username, isActive: true });
+  
+      if (!activeBooking) {
+        return res.status(404).json({ message: 'No active bookings found for this user.' });
+      }
+  
+      // Return the booking details
+      res.status(200).json(activeBooking);
+    } catch (error) {
+      console.error('Error fetching booking details:', error);
+      res.status(500).json({ error: 'An error occurred while fetching booking details.' });
+    }
+  });
+  
+
 // DELETE route to cancel a booking
 router.delete('/booking/:id', async (req, res) => {
     try {
