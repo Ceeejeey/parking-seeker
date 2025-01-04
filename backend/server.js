@@ -10,6 +10,7 @@ const keepersRoutes = require('./routes/keepers');
 const UserInfo = require('./routes/userInfo');
 const bookingRoutes = require('./routes/booking');
 
+
 const app = express();
 dotenv.config();
 
@@ -31,6 +32,8 @@ app.use('/api/user', UserInfo)
 app.use('/api/parking', parkingRoutes);
 //booking routes
 app.use('/api/bookings', bookingRoutes);
+
+
 
 // Example of protected route (using authMiddleware)
 app.get('/api/protected', authMiddleware, (req, res) => {

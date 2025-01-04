@@ -18,14 +18,17 @@ const HomePage = () => {
   const mapRef = useRef(null);
   const [vehicleType, setVehicleType] = useState('');
   const parkingRadiusCoordinates = [81.21329762709837, 8.654921177392538]; // Circle radius coordinate
-  const parkingCenter = [81.21377704290875, 8.654605843273439]; // Circle center coordinate
+  const parkingCenter = [81.21377704290875 , 8.654605843273439]; // Circle center coordinate
   const rectangleCoordinates = [
     [81.21376106874192, 8.654654196901934],
     [81.21382946506576, 8.654602489383553],
     [81.21379325524725, 8.654556085194333],
     [81.2137241883712, 8.654607792719089],
   ];
-  const userLocation = [81.21344073102314, 8.654732439835286]; // Hardcoded user location
+  // Hardcoded user location inside park 
+ const userLocation = [81.21377366005822, 8.654610816180755]; 
+  // Hardcoded user location inside circle
+  //const userLocation = [81.21360098376982, 8.654650313807098];
   const [user, setUser] = useState(null);
   const location = useLocation();
   const [error, setError] = useState(null);
@@ -404,138 +407,141 @@ useEffect(() => {
         .addTo(map);
 
 
-      (async () => {
-        // Fetch active booking and location status
-        const activeBookingData = await fetchActiveBooking();
-        let hasActiveBooking = Array.isArray(activeBookingData) && activeBookingData.length > 0;
-
-        // Store the state in localStorage
-        localStorage.setItem('hasActiveBooking', JSON.stringify(hasActiveBooking));
-
-        const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
-
-        // If no active booking and inside circle, show the popup
-        if (isInsideCircle && !hasActiveBooking) {
-          const popupContent = document.createElement('div');
-
-          popupContent.innerHTML = `
-                <h3>Do you want to park here?</h3>
-                <button id="yes-button">Yes</button>
-                <button id="no-button">No</button>
-              `;
-
-          const popup = new mapboxgl.Popup()
-            .setLngLat(userLocation)
-            .setDOMContent(popupContent)
-            .addTo(map);
-
-          // Attach event listener to the Yes button
-          popupContent.querySelector('#yes-button').addEventListener('click', () => {
-            navigate('/bookingPark', { state: { vehicleType, user, token } });
-            localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Update localStorage
-            startTimer(2 * 60); // Start the timer
-          });
-
-          // Optionally handle the No button
-          popupContent.querySelector('#no-button').addEventListener('click', () => {
-            popup.remove(); // Close the popup if "No" is clicked
-          });
-        }
-
-        console.log('Has active booking:', hasActiveBooking);
-      })();
-
-      (async () => {
-        // Retrieve the booking state from localStorage
-        const hasActiveBooking = JSON.parse(localStorage.getItem('hasActiveBooking') || 'false');
-        const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
-
-        if (hasActiveBooking) {
-          // Directly start the timer if there's an active booking
-          startTimer(2 * 60); // 2 minutes
-        } else if (isInsideCircle) {
-          // Show popup only if there's no active booking
-          const popupContent = document.createElement('div');
-
-          popupContent.innerHTML = `
-                <h3>Do you want to park here?</h3>
-                <button id="yes-button">Yes</button>
-                <button id="no-button">No</button>
-             ` ;
-
-          const popup = new mapboxgl.Popup()
-            .setLngLat(userLocation)
-            .setDOMContent(popupContent)
-            .addTo(map);
-
-          // Attach event listener to the Yes button
-          popupContent.querySelector('#yes-button').addEventListener('click', () => {
-            navigate('/bookingPark', { state: { vehicleType, user, token } });
-            localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Set it as true after confirmation
-            startTimer(2 * 60); // Start the timer
-          });
-
-          // Optionally handle the No button
-          popupContent.querySelector('#no-button').addEventListener('click', () => {
-            popup.remove(); // Close the popup if "No" is clicked
-          });
-        }
-      })();
-
-
-
-      const activeBooking = await fetchActiveBooking();
-
-      if (activeBooking && isLocationInsidePolygon(userLocation, rectangleCoordinates)) {
-        const popupContent = document.createElement('div');
-
-        popupContent.innerHTML = `
-          <h3>You reached the park</h3>
-          <button id="park-button">Park Here</button>
-          <button id="leave-button">Leave</button>
-        `;
-
-        const popup = new mapboxgl.Popup()
-          .setLngLat(userLocation)
-          .setDOMContent(popupContent)
-          .addTo(map);
-
-        popupContent.querySelector('#park-button').addEventListener('click', async () => {
-          try {
-            const { username, vehicleType, price, duration } = activeBooking;
-
-            await axios.post('http://localhost:5000/api/park', {
-              username,
-              vehicleType,
-              startTime: new Date(),
-              price,
-              duration,
+        (async () => {
+          // Fetch active booking and location status
+          const activeBookingData = await fetchActiveBookings();
+          let hasActiveBooking = Array.isArray(activeBookingData) && activeBookingData.length > 0;
+        
+          // Store the state in localStorage
+          localStorage.setItem('hasActiveBooking', JSON.stringify(hasActiveBooking));
+        
+          const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
+          const isOutsideRectangle = !isLocationInsidePolygon(userLocation, rectangleCoordinates);
+        
+          // Show the popup only if inside the circle, outside the rectangle, and no active booking
+          if (isInsideCircle && isOutsideRectangle && !hasActiveBooking) {
+            const popupContent = document.createElement('div');
+        
+            popupContent.innerHTML = `
+                  <h3>Do you want to park here?</h3>
+                  <button id="yes-button">Yes</button>
+                  <button id="no-button">No</button>
+                `;
+        
+            const popup = new mapboxgl.Popup()
+              .setLngLat(userLocation)
+              .setDOMContent(popupContent)
+              .addTo(map);
+        
+            // Attach event listener to the Yes button
+            popupContent.querySelector('#yes-button').addEventListener('click', () => {
+              navigate('/bookingPark', { state: { vehicleType, user, token } });
+              localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Update localStorage
+              startTimer(2 * 60); // Start the timer
             });
-
-            alert('Parked successfully');
-            popup.remove();
-          } catch (error) {
-            console.error('Error parking vehicle:', error);
-            alert('Failed to park vehicle.');
+        
+            // Optionally handle the No button
+            popupContent.querySelector('#no-button').addEventListener('click', () => {
+              popup.remove(); // Close the popup if "No" is clicked
+            });
           }
-        });
+        
+          console.log('Has active booking:', hasActiveBooking);
+        })();
+        
+        (async () => {
+          // Retrieve the booking state from localStorage
+          const hasActiveBooking = JSON.parse(localStorage.getItem('hasActiveBooking') || 'false');
+          const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
+          const isOutsideRectangle = !isLocationInsidePolygon(userLocation, rectangleCoordinates);
+        
+          // Show popup or start timer based on conditions
+          if (hasActiveBooking) {
+            // Directly start the timer if there's an active booking
+            startTimer(2 * 60); // 2 minutes
+          } else if (isInsideCircle && isOutsideRectangle) {
+            // Show popup only if inside the circle and outside the rectangle
+            const popupContent = document.createElement('div');
+        
+            popupContent.innerHTML = `
+                  <h3>Do you want to park here?</h3>
+                  <button id="yes-button">Yes</button>
+                  <button id="no-button">No</button>
+               `;
+        
+            const popup = new mapboxgl.Popup()
+              .setLngLat(userLocation)
+              .setDOMContent(popupContent)
+              .addTo(map);
+        
+            // Attach event listener to the Yes button
+            popupContent.querySelector('#yes-button').addEventListener('click', () => {
+              navigate('/bookingPark', { state: { vehicleType, user, token } });
+              localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Set it as true after confirmation
+              startTimer(2 * 60); // Start the timer
+            });
+        
+            // Optionally handle the No button
+            popupContent.querySelector('#no-button').addEventListener('click', () => {
+              popup.remove(); // Close the popup if "No" is clicked
+            });
+          }
+        })();
+      
+     
+        const activeBooking = await fetchActiveBooking();
 
-        popupContent.querySelector('#leave-button').addEventListener('click', () => {
-          popup.remove();
-        });
-      }
-
-
-    });
-
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
-  }, [vehicleType, user]); // Dependency array includes vehicleType
+        if (activeBooking && isLocationInsidePolygon(userLocation, rectangleCoordinates)) {
+          const popupContent = document.createElement('div');
+  
+          popupContent.innerHTML = `
+            <h3>You reached the park</h3>
+            <button id="park-button">Park Here</button>
+            <button id="leave-button">Leave</button>
+          `;
+  
+          const popup = new mapboxgl.Popup()
+            .setLngLat(userLocation)
+            .setDOMContent(popupContent)
+            .addTo(map);
+  
+          popupContent.querySelector('#park-button').addEventListener('click', async () => {
+            try {
+              const {_id, username, vehicleType, price, duration } = activeBooking;
+  
+              await axios.post('http://localhost:5000/api/parking/park', {
+                _id,
+                username,
+                vehicleType,
+                startTime: new Date(),
+                price,
+                duration,
+              });
+  
+              alert('Parked successfully');
+              popup.remove();
+            } catch (error) {
+              console.error('Error parking vehicle:', error);
+              alert('Failed to park vehicle.');
+            }
+          });
+  
+          popupContent.querySelector('#leave-button').addEventListener('click', () => {
+            popup.remove();
+          });
+        }
+  
+  
+      });
+  
+  
+      return () => {
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+      };
+    }, [vehicleType, user]); // Dependency array includes vehicleType
 
   const handleVehicleTypeChange = (event) => {
     setVehicleType(event.target.value);
@@ -565,6 +571,18 @@ useEffect(() => {
   // Check for active booking
   const fetchActiveBooking = async () => {
     try {
+      const response = await axios.get(`http://localhost:5000/api/bookings/details?username=${user.username}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Active booking:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching active booking:', error);
+      return null;
+    }
+  };
+  const fetchActiveBookings = async () => {
+    try {
       const response = await axios.get('http://localhost:5000/api/bookings/booking', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -575,7 +593,6 @@ useEffect(() => {
       return null;
     }
   };
-
   // Helper function to check if the user's location is inside the parking circle
   const isLocationInsideCircle = (userLocation, center, radiusPoint) => {
     const [userLon, userLat] = userLocation;
