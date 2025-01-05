@@ -1,37 +1,60 @@
 import React, { useEffect, useState } from 'react';
-import './keepers.css'; // Ensure you create and style the CSS file
+import './keepers.css';
 
 const KeepersPage = () => {
+  const TOTAL_SPACES = { cars: 3, bikes: 4 }; // Hardcoded total spaces
+
   // State to hold vehicle counts
   const [vehicleData, setVehicleData] = useState({
     parked: { cars: 0, bikes: 0 },
     booked: { cars: 0, bikes: 0 },
-    remain: { cars: 3, bikes: 2 },
+    remain: { cars: 3, bikes: 4 }, // Initially set to total spaces
   });
 
   const [availability, setAvailability] = useState({ cars: true, bikes: true });
 
   useEffect(() => {
-    const checkAvailability = async () => {
+    const fetchVehicleData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/parking/check-availability', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ remain: vehicleData.remain })
+        // Fetch parked vehicles
+        const parkedResponse = await fetch('http://localhost:5000/api/parking/park');
+        const parkedData = await parkedResponse.json();
+
+        // Fetch booked vehicles
+        const bookedResponse = await fetch('http://localhost:5000/api/bookings/booking');
+        const bookedData = await bookedResponse.json();
+
+        // Count parked cars and bikes
+        const parkedCars = parkedData.filter((item) => item.vehicleType === 'car').length;
+        const parkedBikes = parkedData.filter((item) => item.vehicleType === 'bike').length;
+
+        // Count booked cars and bikes
+        const bookedCars = bookedData.filter((item) => item.vehicleType === 'car').length;
+        const bookedBikes = bookedData.filter((item) => item.vehicleType === 'bike').length;
+
+        // Calculate remaining spaces
+        const remainCars = TOTAL_SPACES.cars - (parkedCars + bookedCars);
+        const remainBikes = TOTAL_SPACES.bikes - (parkedBikes + bookedBikes);
+
+        // Update state with fetched data
+        setVehicleData({
+          parked: { cars: parkedCars, bikes: parkedBikes },
+          booked: { cars: bookedCars, bikes: bookedBikes },
+          remain: { cars: remainCars, bikes: remainBikes },
         });
-        const data = await response.json();
+
+        // Update availability
         setAvailability({
-          cars: data.carsAvailable,
-          bikes: data.bikesAvailable,
+          cars: remainCars > 0,
+          bikes: remainBikes > 0,
         });
       } catch (error) {
-        console.error('Error checking availability:', error);
+        console.error('Error fetching vehicle data:', error);
       }
     };
 
-    checkAvailability();
-  }, [vehicleData.remain]);
-
+    fetchVehicleData();
+  }, []);
 
   const handleLogout = () => {
     // Handle logout functionality, redirect to login page
@@ -54,8 +77,9 @@ const KeepersPage = () => {
         <h1>Vehicle Count</h1>
         <button className="logout-button" onClick={handleLogout}>Log out</button>
       </div>
-      
+
       <div className="vehicle-count">
+        {/* Parked Section */}
         <div className="row">
           <h3>Parked</h3>
           <div className="count-box">
@@ -71,6 +95,7 @@ const KeepersPage = () => {
           </div>
         </div>
 
+        {/* Booked Section */}
         <div className="row">
           <h3>Booked</h3>
           <div className="count-box">
@@ -86,6 +111,7 @@ const KeepersPage = () => {
           </div>
         </div>
 
+        {/* Remaining Spaces Section */}
         <div className="row">
           <h3>Remain</h3>
           <div className="count-box">
