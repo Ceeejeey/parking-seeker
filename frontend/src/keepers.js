@@ -2,16 +2,16 @@ import React, { useEffect, useState } from 'react';
 import './keepers.css';
 
 const KeepersPage = () => {
-  const TOTAL_SPACES = { cars: 3, bikes: 4 }; // Hardcoded total spaces
+  const TOTAL_SPACES = { cars: 3, bike: 4 }; // Hardcoded total spaces
 
   // State to hold vehicle counts
   const [vehicleData, setVehicleData] = useState({
-    parked: { cars: 0, bikes: 0 },
-    booked: { cars: 0, bikes: 0 },
-    remain: { cars: 3, bikes: 4 }, // Initially set to total spaces
+    parked: { cars: 0, bike: 0 },
+    booked: { cars: 0, bike: 0 },
+    remain: { cars: 3, bike: 4 }, // Initially set to total spaces
   });
 
-  const [availability, setAvailability] = useState({ cars: true, bikes: true });
+  const [availability, setAvailability] = useState({ cars: true, bike: true });
 
   useEffect(() => {
     const fetchVehicleData = async () => {
@@ -24,29 +24,29 @@ const KeepersPage = () => {
         const bookedResponse = await fetch('http://localhost:5000/api/bookings/booking');
         const bookedData = await bookedResponse.json();
 
-        // Count parked cars and bikes
+        // Count parked cars and bike
         const parkedCars = parkedData.filter((item) => item.vehicleType === 'car').length;
-        const parkedBikes = parkedData.filter((item) => item.vehicleType === 'bike').length;
+        const parkedBike = parkedData.filter((item) => item.vehicleType === 'bike').length;
 
-        // Count booked cars and bikes
+        // Count booked cars and bike
         const bookedCars = bookedData.filter((item) => item.vehicleType === 'car').length;
-        const bookedBikes = bookedData.filter((item) => item.vehicleType === 'bike').length;
+        const bookedBike = bookedData.filter((item) => item.vehicleType === 'bike').length;
 
         // Calculate remaining spaces
         const remainCars = TOTAL_SPACES.cars - (parkedCars + bookedCars);
-        const remainBikes = TOTAL_SPACES.bikes - (parkedBikes + bookedBikes);
+        const remainBike = TOTAL_SPACES.bike - (parkedBike + bookedBike);
 
         // Update state with fetched data
         setVehicleData({
-          parked: { cars: parkedCars, bikes: parkedBikes },
-          booked: { cars: bookedCars, bikes: bookedBikes },
-          remain: { cars: remainCars, bikes: remainBikes },
+          parked: { cars: parkedCars, bike: parkedBike },
+          booked: { cars: bookedCars, bike: bookedBike },
+          remain: { cars: remainCars, bike: remainBike },
         });
 
         // Update availability
         setAvailability({
           cars: remainCars > 0,
-          bikes: remainBikes > 0,
+          bike: remainBike > 0,
         });
       } catch (error) {
         console.error('Error fetching vehicle data:', error);
@@ -88,8 +88,8 @@ const KeepersPage = () => {
               <input type="number" value={vehicleData.parked.cars} readOnly />
             </div>
             <div className="count-item">
-              <p>Bikes</p>
-              <input type="number" value={vehicleData.parked.bikes} readOnly />
+              <p>Bike</p>
+              <input type="number" value={vehicleData.parked.bike} readOnly />
             </div>
             <button className="details-button" onClick={() => handleDetails('parked')}>Details</button>
           </div>
@@ -104,8 +104,8 @@ const KeepersPage = () => {
               <input type="number" value={vehicleData.booked.cars} readOnly />
             </div>
             <div className="count-item">
-              <p>Bikes</p>
-              <input type="number" value={vehicleData.booked.bikes} readOnly />
+              <p>Bike</p>
+              <input type="number" value={vehicleData.booked.bike} readOnly />
             </div>
             <button className="details-button" onClick={() => handleDetails('booked')}>Details</button>
           </div>
@@ -120,8 +120,8 @@ const KeepersPage = () => {
               <input type="number" value={vehicleData.remain.cars} readOnly />
             </div>
             <div className="count-item">
-              <p>Bikes</p>
-              <input type="number" value={vehicleData.remain.bikes} readOnly />
+              <p>Bike</p>
+              <input type="number" value={vehicleData.remain.bike} readOnly />
             </div>
           </div>
         </div>

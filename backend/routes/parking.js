@@ -161,5 +161,38 @@ router.delete('/park/:id', async (req, res) => {
     res.status(500).json({ message: 'Failed to delete parking record.', error: error.message });
   }
 });
+router.get('/all', async (req, res) => {
+  try {
+    const parkingSpaces = await ParkingSpace.find({});
+    res.json(parkingSpaces);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+router.put('/park/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stopTime, duration, price } = req.body;
+
+    console.log('Request Params:', id);
+    console.log('Request Body:', { stopTime, duration, price });
+
+    const updatedRecord = await Parking.findByIdAndUpdate(
+      id,
+      { stopTime, duration, price },
+      { new: true }
+    );
+
+    if (!updatedRecord) {
+      return res.status(404).json({ error: 'Parking record not found.' });
+    }
+
+    res.status(200).json(updatedRecord);
+  } catch (err) {
+    console.error('Error updating parking record:', err);
+    res.status(500).json({ error: 'Failed to update parking record.' });
+  }
+});
 
 module.exports = router;
+
