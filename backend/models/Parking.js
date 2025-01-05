@@ -14,22 +14,6 @@ const ParkingSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
-  price: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  duration: {
-    type: Number,
-    required: true, // Duration in minutes
-    min: 1,
-  },
-  endTime: {
-    type: Date,
-    default: function () {
-      return new Date(this.startTime.getTime() + this.duration * 60000); // Calculate end time
-    },
-  },
 });
 
 module.exports = mongoose.model('Parking', ParkingSchema);

@@ -6,10 +6,10 @@ const Booking = require('../models/Booking');
 router.post('/booking', async (req, res) => {
     
   try {
-    const { username, vehicleType, duration, price } = req.body;
+    const { username, vehicleType } = req.body;
 
     // Validate the input
-    if (!username || !vehicleType || !duration || !price) {
+    if (!username || !vehicleType ) {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
@@ -17,8 +17,6 @@ router.post('/booking', async (req, res) => {
     const booking = new Booking({
       username,
       vehicleType,
-      duration,
-      price,
     });
 
     // Save the booking to the database

@@ -57,8 +57,7 @@ const BookingDetails = () => {
           <tr>
             <th>User Name</th>
             <th>Vehicle Type</th>
-            <th>Duration</th>
-            <th>Price</th>
+            <th>Booking created</th>
             <th>Cancel</th>
           </tr>
         </thead>
@@ -67,8 +66,7 @@ const BookingDetails = () => {
             <tr key={booking._id}>
               <td>{booking.username}</td>
               <td>{booking.vehicleType}</td>
-              <td>{booking.duration} hours</td>
-              <td>{booking.price} LKR</td>
+              <td>{new Date(booking.createdAt).toLocaleString()}</td>
               <td>
                 <button
                   className="cancel-button"

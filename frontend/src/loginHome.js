@@ -28,7 +28,7 @@ const HomePage = () => {
   // Hardcoded user location inside park 
  const userLocation = [81.21377366005822, 8.654610816180755]; 
   // Hardcoded user location inside circle
-  //const userLocation = [81.21360098376982, 8.654650313807098];
+ //const userLocation = [81.21360098376982, 8.654650313807098];
   const [user, setUser] = useState(null);
   const location = useLocation();
   const [error, setError] = useState(null);
@@ -100,10 +100,11 @@ const clearTimerFromLocalStorage = () => {
 };
 
 // Function to handle the expiration of the first timer
-const handleFirstTimerExpiration = () => {
+const handleFirstTimerExpiration = async() => {
   console.log('First timer expired. Showing popup...');
   setFirstTimerEnded(true); // Block the first timer after it ends
-
+  const activeParkingData = await fetchActiveParking();
+  if(!activeParkingData){
   const popupContent = document.createElement('div');
   popupContent.innerHTML = `
     <h3>Do you still want to park here?</h3>
@@ -144,6 +145,7 @@ const handleFirstTimerExpiration = () => {
 
   yesButton.addEventListener('click', handleYesClick);
   noButton.addEventListener('click', handleNoClick);
+}
 };
 
 // Function to handle the expiration of the second timer
@@ -410,6 +412,7 @@ useEffect(() => {
         (async () => {
           // Fetch active booking and location status
           const activeBookingData = await fetchActiveBookings();
+          
           let hasActiveBooking = Array.isArray(activeBookingData) && activeBookingData.length > 0;
         
           // Store the state in localStorage
@@ -454,12 +457,12 @@ useEffect(() => {
           const hasActiveBooking = JSON.parse(localStorage.getItem('hasActiveBooking') || 'false');
           const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
           const isOutsideRectangle = !isLocationInsidePolygon(userLocation, rectangleCoordinates);
-        
+          const activeParkingData = await fetchActiveParking();
           // Show popup or start timer based on conditions
           if (hasActiveBooking) {
             // Directly start the timer if there's an active booking
             startTimer(2 * 60); // 2 minutes
-          } else if (isInsideCircle && isOutsideRectangle) {
+          } else if (isInsideCircle && isOutsideRectangle && !activeParkingData) {
             // Show popup only if inside the circle and outside the rectangle
             const popupContent = document.createElement('div');
         
@@ -507,15 +510,14 @@ useEffect(() => {
   
           popupContent.querySelector('#park-button').addEventListener('click', async () => {
             try {
-              const {_id, username, vehicleType, price, duration } = activeBooking;
+              const {_id, username, vehicleType} = activeBooking;
   
               await axios.post('http://localhost:5000/api/parking/park', {
                 _id,
                 username,
                 vehicleType,
                 startTime: new Date(),
-                price,
-                duration,
+              
               });
   
               alert('Parked successfully');
@@ -584,6 +586,18 @@ useEffect(() => {
   const fetchActiveBookings = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/bookings/booking', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Active booking:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching active booking:', error);
+      return null;
+    }
+  };
+  const fetchActiveParking = async () => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/parking/details?username=${user.username}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       console.log('Active booking:', response.data);
