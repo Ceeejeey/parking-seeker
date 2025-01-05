@@ -18,7 +18,7 @@ const HomePage = () => {
   const mapRef = useRef(null);
   const [vehicleType, setVehicleType] = useState('');
   const parkingRadiusCoordinates = [81.21329762709837, 8.654921177392538]; // Circle radius coordinate
-  const parkingCenter = [81.21377704290875 , 8.654605843273439]; // Circle center coordinate
+  const parkingCenter = [81.21377704290875, 8.654605843273439]; // Circle center coordinate
   const rectangleCoordinates = [
     [81.21376106874192, 8.654654196901934],
     [81.21382946506576, 8.654602489383553],
@@ -26,9 +26,9 @@ const HomePage = () => {
     [81.2137241883712, 8.654607792719089],
   ];
   // Hardcoded user location inside park 
- const userLocation = [81.21377366005822, 8.654610816180755]; 
+  const userLocation = [81.21377366005822, 8.654610816180755]; 
   // Hardcoded user location inside circle
- //const userLocation = [81.21360098376982, 8.654650313807098];
+ // const userLocation = [81.21360098376982, 8.654650313807098];
   const [user, setUser] = useState(null);
   const location = useLocation();
   const [error, setError] = useState(null);
@@ -36,7 +36,7 @@ const HomePage = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const timerRef = useRef(null);
   const [firstTimerEnded, setFirstTimerEnded] = useState(false);
-  const { token , bookingDetails} = location.state || {};
+  const { token, bookingDetails } = location.state || {};
 
   // Fetch user data from backend
   useEffect(() => {
@@ -69,213 +69,214 @@ const HomePage = () => {
     fetchUser();
   }, [token]); // Ensure no unnecessary state changes
 
- // Function to start the first timer
- const startTimer = (durationInSeconds) => {
-  if (isTimerRunning || firstTimerEnded) return; // Block if already running or first timer has ended
+  // Function to start the first timer
+  const startTimer = (durationInSeconds) => {
+    if (isTimerRunning || firstTimerEnded) return; // Block if already running or first timer has ended
 
-  const expiryTime = new Date().getTime() + durationInSeconds * 1000;
-  localStorage.setItem('parkingTimerExpiry', expiryTime.toString());
+    const expiryTime = new Date().getTime() + durationInSeconds * 1000;
+    localStorage.setItem('parkingTimerExpiry', expiryTime.toString());
 
-  setCountdown(durationInSeconds);
-  setIsTimerRunning(true);
-};
+    setCountdown(durationInSeconds);
+    setIsTimerRunning(true);
+  };
 
-// Function to start the second timer
-const startSecondTimer = (durationInSeconds) => {
-  const expiryTime = new Date().getTime() + durationInSeconds * 1000;
-  console.log('Starting second timer with expiry:', new Date(expiryTime));
+  // Function to start the second timer
+  const startSecondTimer = (durationInSeconds) => {
+    const expiryTime = new Date().getTime() + durationInSeconds * 1000;
+    console.log('Starting second timer with expiry:', new Date(expiryTime));
 
-  // Clear the first timer's localStorage and set the second timer's expiry
-  localStorage.removeItem('parkingTimerExpiry');
-  localStorage.setItem('secondTimerExpiry', expiryTime.toString());
+    // Clear the first timer's localStorage and set the second timer's expiry
+    localStorage.removeItem('parkingTimerExpiry');
+    localStorage.setItem('secondTimerExpiry', expiryTime.toString());
 
-  setCountdown(durationInSeconds);
-  setIsTimerRunning(true);
-};
+    setCountdown(durationInSeconds);
+    setIsTimerRunning(true);
+  };
 
-// Function to clear timers from localStorage
-const clearTimerFromLocalStorage = () => {
-  localStorage.removeItem('parkingTimerExpiry');
-  localStorage.removeItem('secondTimerExpiry');
-};
+  // Function to clear timers from localStorage
+  const clearTimerFromLocalStorage = () => {
+    localStorage.removeItem('parkingTimerExpiry');
+    localStorage.removeItem('secondTimerExpiry');
+  };
 
-// Function to handle the expiration of the first timer
-const handleFirstTimerExpiration = async() => {
-  console.log('First timer expired. Showing popup...');
-  setFirstTimerEnded(true); // Block the first timer after it ends
-  const activeParkingData = await fetchActiveParking();
-  if(!activeParkingData){
-  const popupContent = document.createElement('div');
-  popupContent.innerHTML = `
+  // Function to handle the expiration of the first timer
+  const handleFirstTimerExpiration = async () => {
+    console.log('First timer expired. Showing popup...');
+    setFirstTimerEnded(true); // Block the first timer after it ends
+    const activeParkingData = await fetchActiveParking();
+    console.log('Active parking data id:', activeParkingData);
+    if (!activeParkingData._id) {
+      const popupContent = document.createElement('div');
+      popupContent.innerHTML = `
     <h3>Do you still want to park here?</h3>
     <button id="yes-button">Yes</button>
     <button id="no-button">No</button>
   `;
 
-  let popup;
-  if (mapRef.current) {
-    popup = new mapboxgl.Popup()
-      .setLngLat(userLocation)
-      .setDOMContent(popupContent)
-      .addTo(mapRef.current);
-  }
+      let popup;
+      if (mapRef.current) {
+        popup = new mapboxgl.Popup()
+          .setLngLat(userLocation)
+          .setDOMContent(popupContent)
+          .addTo(mapRef.current);
+      }
 
-  const yesButton = popupContent.querySelector('#yes-button');
-  const noButton = popupContent.querySelector('#no-button');
+      const yesButton = popupContent.querySelector('#yes-button');
+      const noButton = popupContent.querySelector('#no-button');
 
-  const handleYesClick = () => {
-    popup?.remove();
-    startSecondTimer(3 * 60); // Start the second timer (3 minutes)
+      const handleYesClick = () => {
+        popup?.remove();
+        startSecondTimer(3 * 60); // Start the second timer (3 minutes)
+      };
+
+      const handleNoClick = async () => {
+        popup?.remove();
+        clearExistingTimer();
+
+        try {
+          await axios.delete(`http://localhost:5000/api/bookings/booking/${bookingDetails.booking._id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          alert('Booking cancelled successfully.');
+        } catch (error) {
+          console.error('Error cancelling booking:', error);
+          alert('Failed to cancel booking.');
+        }
+      };
+
+      yesButton.addEventListener('click', handleYesClick);
+      noButton.addEventListener('click', handleNoClick);
+    }
   };
 
-  const handleNoClick = async () => {
-    popup?.remove();
+  // Function to handle the expiration of the second timer
+  const handleSecondTimerExpiration = async () => {
+    console.log('Second timer expired. Cancelling booking...');
     clearExistingTimer();
 
     try {
       await axios.delete(`http://localhost:5000/api/bookings/booking/${bookingDetails.booking._id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Booking cancelled successfully.');
+      alert('Second timer expired. Booking has been cancelled successfully.');
     } catch (error) {
       console.error('Error cancelling booking:', error);
-      alert('Failed to cancel booking.');
+      alert('Failed to cancel booking after the timer expired.');
     }
   };
 
-  yesButton.addEventListener('click', handleYesClick);
-  noButton.addEventListener('click', handleNoClick);
-}
-};
-
-// Function to handle the expiration of the second timer
-const handleSecondTimerExpiration = async () => {
-  console.log('Second timer expired. Cancelling booking...');
-  clearExistingTimer();
-
-  try {
-    await axios.delete(`http://localhost:5000/api/bookings/booking/${bookingDetails.booking._id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    alert('Second timer expired. Booking has been cancelled successfully.');
-  } catch (error) {
-    console.error('Error cancelling booking:', error);
-    alert('Failed to cancel booking after the timer expired.');
-  }
-};
-
-// Function to clear the existing timer
-const clearExistingTimer = () => {
-  if (timerRef.current) {
-    clearInterval(timerRef.current);
-    timerRef.current = null;
-  }
-  setIsTimerRunning(false);
-  setCountdown(0);
-  clearTimerFromLocalStorage();
-};
-
-// Hook to manage the first timer
-useEffect(() => {
-  console.log('useEffect triggered for first timer.');
-
-  const savedExpiry = localStorage.getItem('parkingTimerExpiry');
-  if (savedExpiry && !firstTimerEnded) {
-    const expiryTime = parseInt(savedExpiry, 10);
-    const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
-
-    if (timeRemaining > 0) {
-      console.log('First timer is active. Time remaining:', timeRemaining);
-      setCountdown(timeRemaining);
-      setIsTimerRunning(true);
-    } else {
-      console.log('First timer expired. Clearing localStorage.');
-      clearTimerFromLocalStorage();
-      handleFirstTimerExpiration();
-    }
-  }
-
-  if (isTimerRunning && countdown > 0 && !localStorage.getItem('secondTimerExpiry')) {
-    console.log('First timer running with countdown:', countdown);
-    if (!timerRef.current) {
-      console.log('Starting first timer...');
-      timerRef.current = setInterval(() => {
-        setCountdown((prev) => {
-          console.log('First timer countdown tick:', prev);
-          if (prev <= 1) {
-            console.log('First timer expired. Clearing timer and triggering handler.');
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-            setIsTimerRunning(false);
-
-            handleFirstTimerExpiration();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-  }
-
-  return () => {
-    if (timerRef.current && !localStorage.getItem('secondTimerExpiry')) {
-      console.log('Cleaning up first timer on unmount or state change...');
+  // Function to clear the existing timer
+  const clearExistingTimer = () => {
+    if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    setIsTimerRunning(false);
+    setCountdown(0);
+    clearTimerFromLocalStorage();
   };
-}, [isTimerRunning, countdown, firstTimerEnded]);
 
-// Hook to manage the second timer
-useEffect(() => {
-  console.log('useEffect triggered for second timer.');
+  // Hook to manage the first timer
+  useEffect(() => {
+    console.log('useEffect triggered for first timer.');
 
-  const savedSecondExpiry = localStorage.getItem('secondTimerExpiry');
-  if (savedSecondExpiry) {
-    const expiryTime = parseInt(savedSecondExpiry, 10);
-    const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
+    const savedExpiry = localStorage.getItem('parkingTimerExpiry');
+    if (savedExpiry && !firstTimerEnded) {
+      const expiryTime = parseInt(savedExpiry, 10);
+      const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
 
-    if (timeRemaining > 0) {
-      console.log('Second timer is active. Time remaining:', timeRemaining);
-      setCountdown(timeRemaining);
-      setIsTimerRunning(true);
-    } else {
-      console.log('Second timer expired. Clearing localStorage.');
-      clearTimerFromLocalStorage();
-      handleSecondTimerExpiration();
+      if (timeRemaining > 0) {
+        console.log('First timer is active. Time remaining:', timeRemaining);
+        setCountdown(timeRemaining);
+        setIsTimerRunning(true);
+      } else {
+        console.log('First timer expired. Clearing localStorage.');
+        clearTimerFromLocalStorage();
+        handleFirstTimerExpiration();
+      }
     }
-  }
 
-  if (isTimerRunning && countdown > 0 && localStorage.getItem('secondTimerExpiry')) {
-    console.log('Second timer running with countdown:', countdown);
-    if (!timerRef.current) {
-      console.log('Starting second timer...');
-      timerRef.current = setInterval(() => {
-        setCountdown((prev) => {
-          console.log('Second timer countdown tick:', prev);
-          if (prev <= 1) {
-            console.log('Second timer expired. Clearing timer and triggering handler.');
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-            setIsTimerRunning(false);
+    if (isTimerRunning && countdown > 0 && !localStorage.getItem('secondTimerExpiry')) {
+      console.log('First timer running with countdown:', countdown);
+      if (!timerRef.current) {
+        console.log('Starting first timer...');
+        timerRef.current = setInterval(() => {
+          setCountdown((prev) => {
+            console.log('First timer countdown tick:', prev);
+            if (prev <= 1) {
+              console.log('First timer expired. Clearing timer and triggering handler.');
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+              setIsTimerRunning(false);
 
-            handleSecondTimerExpiration();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+              handleFirstTimerExpiration();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
     }
-  }
 
-  return () => {
-    if (timerRef.current && localStorage.getItem('secondTimerExpiry')) {
-      console.log('Cleaning up second timer on unmount or state change...');
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    return () => {
+      if (timerRef.current && !localStorage.getItem('secondTimerExpiry')) {
+        console.log('Cleaning up first timer on unmount or state change...');
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isTimerRunning, countdown, firstTimerEnded]);
+
+  // Hook to manage the second timer
+  useEffect(() => {
+    console.log('useEffect triggered for second timer.');
+
+    const savedSecondExpiry = localStorage.getItem('secondTimerExpiry');
+    if (savedSecondExpiry) {
+      const expiryTime = parseInt(savedSecondExpiry, 10);
+      const timeRemaining = Math.floor((expiryTime - new Date().getTime()) / 1000);
+
+      if (timeRemaining > 0) {
+        console.log('Second timer is active. Time remaining:', timeRemaining);
+        setCountdown(timeRemaining);
+        setIsTimerRunning(true);
+      } else {
+        console.log('Second timer expired. Clearing localStorage.');
+        clearTimerFromLocalStorage();
+        handleSecondTimerExpiration();
+      }
     }
-  };
-}, [isTimerRunning, countdown]);
+
+    if (isTimerRunning && countdown > 0 && localStorage.getItem('secondTimerExpiry')) {
+      console.log('Second timer running with countdown:', countdown);
+      if (!timerRef.current) {
+        console.log('Starting second timer...');
+        timerRef.current = setInterval(() => {
+          setCountdown((prev) => {
+            console.log('Second timer countdown tick:', prev);
+            if (prev <= 1) {
+              console.log('Second timer expired. Clearing timer and triggering handler.');
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+              setIsTimerRunning(false);
+
+              handleSecondTimerExpiration();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    }
+
+    return () => {
+      if (timerRef.current && localStorage.getItem('secondTimerExpiry')) {
+        console.log('Cleaning up second timer on unmount or state change...');
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isTimerRunning, countdown]);
 
   // Helper function to generate a circle as a GeoJSON polygon
   const createCircle = (center, radiusPoint, points = 64) => {
@@ -409,141 +410,144 @@ useEffect(() => {
         .addTo(map);
 
 
-        (async () => {
-          // Fetch active booking and location status
-          const activeBookingData = await fetchActiveBookings();
-          
-          let hasActiveBooking = Array.isArray(activeBookingData) && activeBookingData.length > 0;
-        
-          // Store the state in localStorage
-          localStorage.setItem('hasActiveBooking', JSON.stringify(hasActiveBooking));
-        
-          const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
-          const isOutsideRectangle = !isLocationInsidePolygon(userLocation, rectangleCoordinates);
-        
-          // Show the popup only if inside the circle, outside the rectangle, and no active booking
-          if (isInsideCircle && isOutsideRectangle && !hasActiveBooking) {
-            const popupContent = document.createElement('div');
-        
-            popupContent.innerHTML = `
+      (async () => {
+        // Fetch active booking and location status
+        const activeBookingData = await fetchActiveBookings();
+
+        let hasActiveBooking = Array.isArray(activeBookingData) && activeBookingData.length > 0;
+
+        // Store the state in localStorage
+        localStorage.setItem('hasActiveBooking', JSON.stringify(hasActiveBooking));
+
+        const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
+        const isOutsideRectangle = !isLocationInsidePolygon(userLocation, rectangleCoordinates);
+        const activeParkingData = await fetchActiveParking();
+
+        // Show the popup only if inside the circle, outside the rectangle, and no active booking
+        if (isInsideCircle && isOutsideRectangle && !hasActiveBooking && !activeParkingData._id) {
+          const popupContent = document.createElement('div');
+
+          popupContent.innerHTML = `
                   <h3>Do you want to park here?</h3>
+                  <p><b>Choose vehicle type before press Yes</b></p>
                   <button id="yes-button">Yes</button>
                   <button id="no-button">No</button>
                 `;
-        
-            const popup = new mapboxgl.Popup()
-              .setLngLat(userLocation)
-              .setDOMContent(popupContent)
-              .addTo(map);
-        
-            // Attach event listener to the Yes button
-            popupContent.querySelector('#yes-button').addEventListener('click', () => {
-              navigate('/bookingPark', { state: { vehicleType, user, token } });
-              localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Update localStorage
-              startTimer(2 * 60); // Start the timer
-            });
-        
-            // Optionally handle the No button
-            popupContent.querySelector('#no-button').addEventListener('click', () => {
-              popup.remove(); // Close the popup if "No" is clicked
-            });
-          }
-        
-          console.log('Has active booking:', hasActiveBooking);
-        })();
-        
-        (async () => {
-          // Retrieve the booking state from localStorage
-          const hasActiveBooking = JSON.parse(localStorage.getItem('hasActiveBooking') || 'false');
-          const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
-          const isOutsideRectangle = !isLocationInsidePolygon(userLocation, rectangleCoordinates);
-          const activeParkingData = await fetchActiveParking();
-          // Show popup or start timer based on conditions
-          if (hasActiveBooking) {
-            // Directly start the timer if there's an active booking
-            startTimer(2 * 60); // 2 minutes
-          } else if (isInsideCircle && isOutsideRectangle && !activeParkingData) {
-            // Show popup only if inside the circle and outside the rectangle
-            const popupContent = document.createElement('div');
-        
-            popupContent.innerHTML = `
-                  <h3>Do you want to park here?</h3>
-                  <button id="yes-button">Yes</button>
-                  <button id="no-button">No</button>
-               `;
-        
-            const popup = new mapboxgl.Popup()
-              .setLngLat(userLocation)
-              .setDOMContent(popupContent)
-              .addTo(map);
-        
-            // Attach event listener to the Yes button
-            popupContent.querySelector('#yes-button').addEventListener('click', () => {
-              navigate('/bookingPark', { state: { vehicleType, user, token } });
-              localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Set it as true after confirmation
-              startTimer(2 * 60); // Start the timer
-            });
-        
-            // Optionally handle the No button
-            popupContent.querySelector('#no-button').addEventListener('click', () => {
-              popup.remove(); // Close the popup if "No" is clicked
-            });
-          }
-        })();
-      
-     
-        const activeBooking = await fetchActiveBooking();
 
-        if (activeBooking && isLocationInsidePolygon(userLocation, rectangleCoordinates)) {
-          const popupContent = document.createElement('div');
-  
-          popupContent.innerHTML = `
-            <h3>You reached the park</h3>
-            <button id="park-button">Park Here</button>
-            <button id="leave-button">Leave</button>
-          `;
-  
           const popup = new mapboxgl.Popup()
             .setLngLat(userLocation)
             .setDOMContent(popupContent)
             .addTo(map);
-  
-          popupContent.querySelector('#park-button').addEventListener('click', async () => {
-            try {
-              const {_id, username, vehicleType} = activeBooking;
-  
-              await axios.post('http://localhost:5000/api/parking/park', {
-                _id,
-                username,
-                vehicleType,
-                startTime: new Date(),
-              
-              });
-  
-              alert('Parked successfully');
-              popup.remove();
-            } catch (error) {
-              console.error('Error parking vehicle:', error);
-              alert('Failed to park vehicle.');
-            }
+
+          // Attach event listener to the Yes button
+          popupContent.querySelector('#yes-button').addEventListener('click', () => {
+            navigate('/bookingPark', { state: { vehicleType, user, token } });
+            localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Update localStorage
+            startTimer(2 * 60); // Start the timer
           });
-  
-          popupContent.querySelector('#leave-button').addEventListener('click', () => {
+
+          // Optionally handle the No button
+          popupContent.querySelector('#no-button').addEventListener('click', () => {
+            popup.remove(); // Close the popup if "No" is clicked
+          });
+        }
+
+        console.log('Has active booking:', hasActiveBooking);
+      })();
+
+      (async () => {
+        // Retrieve the booking state from localStorage
+        const hasActiveBooking = JSON.parse(localStorage.getItem('hasActiveBooking') || 'false');
+        const isInsideCircle = isLocationInsideCircle(userLocation, parkingCenter, parkingRadiusCoordinates);
+        const isOutsideRectangle = !isLocationInsidePolygon(userLocation, rectangleCoordinates);
+        const activeParkingData = await fetchActiveParking();
+        // Show popup or start timer based on conditions
+        if (hasActiveBooking) {
+          // Directly start the timer if there's an active booking
+          startTimer(2 * 60); // 2 minutes
+        } else if (isInsideCircle && isOutsideRectangle && !activeParkingData._id && !hasActiveBooking) {
+          // Show popup only if inside the circle and outside the rectangle
+          const popupContent = document.createElement('div');
+
+          popupContent.innerHTML = `
+                  <h3>Do you want to park here?</h3>
+                   <p><b>Choose vehicle type before press Yes</b></p>
+                  <button id="yes-button">Yes</button>
+                  <button id="no-button">No</button>
+               `;
+
+          const popup = new mapboxgl.Popup()
+            .setLngLat(userLocation)
+            .setDOMContent(popupContent)
+            .addTo(map);
+
+          // Attach event listener to the Yes button
+          popupContent.querySelector('#yes-button').addEventListener('click', () => {
+            navigate('/bookingPark', { state: { vehicleType, user, token } });
+            localStorage.setItem('hasActiveBooking', JSON.stringify(true)); // Set it as true after confirmation
+            startTimer(2 * 60); // Start the timer
+          });
+
+          // Optionally handle the No button
+          popupContent.querySelector('#no-button').addEventListener('click', () => {
+            popup.remove(); // Close the popup if "No" is clicked
+          });
+        }
+      })();
+
+
+      const activeBooking = await fetchActiveBooking();
+
+      if (activeBooking && activeBooking._id && isLocationInsidePolygon(userLocation, rectangleCoordinates)) {
+        const popupContent = document.createElement('div');
+
+        popupContent.innerHTML = `
+            <h3>You reached the park</h3>
+            <button id="park-button">Park Here</button>
+            <button id="leave-button">Leave</button>
+          `;
+
+        const popup = new mapboxgl.Popup()
+          .setLngLat(userLocation)
+          .setDOMContent(popupContent)
+          .addTo(map);
+
+        popupContent.querySelector('#park-button').addEventListener('click', async () => {
+          try {
+            const { _id, username, vehicleType } = activeBooking;
+
+            await axios.post('http://localhost:5000/api/parking/park', {
+              _id,
+              username,
+              vehicleType,
+              startTime: new Date(),
+
+            });
+
+            alert('Parked successfully');
             popup.remove();
-          });
-        }
-  
-  
-      });
-  
-  
-      return () => {
-        if (mapRef.current) {
-          mapRef.current.remove();
-          mapRef.current = null;
-        }
-      };
-    }, [vehicleType, user]); // Dependency array includes vehicleType
+          } catch (error) {
+            console.error('Error parking vehicle:', error);
+            alert('Failed to park vehicle.');
+          }
+        });
+
+        popupContent.querySelector('#leave-button').addEventListener('click', () => {
+          popup.remove();
+        });
+      }
+
+
+    });
+
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [vehicleType, user]); // Dependency array includes vehicleType
 
   const handleVehicleTypeChange = (event) => {
     setVehicleType(event.target.value);
@@ -642,7 +646,7 @@ useEffect(() => {
     // Check if user's location is within the circle
     return distance <= radius;
   };
- 
+
 
   return (
     <div className="homepage">
@@ -676,7 +680,7 @@ useEffect(() => {
                 Vehicle Type
               </option>
               <option value="car">Car</option>
-              <option value="motorcycle">Motorcycle</option>
+              <option value="bike">Bike</option>
             </select>
             {countdown > 0 && (
               <div className="timer-display">

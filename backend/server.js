@@ -1,46 +1,39 @@
-require('dotenv').config();
+require('dotenv').config(); // Load environment variables
 const express = require('express');
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const authRoutes = require('./routes/auth'); // Import the auth routes
-const authMiddleware = require('./middleware/authMiddleware'); // Import the auth middleware
-const parkingRoutes = require('./routes/parking');
+const cors = require('cors');
+const authRoutes = require('./routes/auth'); // Authentication routes
+const authMiddleware = require('./middleware/authMiddleware'); // Authentication middleware
+const parkingRoutes = require('./routes/parking'); // Parking routes
 const bodyParser = require('body-parser');
-const keepersRoutes = require('./routes/keepers');
-const UserInfo = require('./routes/userInfo');
-const bookingRoutes = require('./routes/booking');
-
+const keepersRoutes = require('./routes/keepers'); // Keepers routes
+const UserInfo = require('./routes/userInfo'); // User info routes
+const bookingRoutes = require('./routes/booking'); // Booking routes
 
 const app = express();
-dotenv.config();
 
-const cors = require('cors');
+// Set up CORS
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow requests from your frontend
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Define the allowed methods
+  origin: 'http://localhost:3000', // Frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
   credentials: true,
 }));
 
 // Middleware to parse incoming JSON data
 app.use(express.json());
 
-// Routes
-app.use('/api/auth', authRoutes); // Add authentication routes
-//user info route
-app.use('/api/user', UserInfo)
-// Parking space routes
-app.use('/api/parking', parkingRoutes);
-//booking routes
-app.use('/api/bookings', bookingRoutes);
+// Define Routes
+app.use('/api/auth', authRoutes); // Auth routes
+app.use('/api/user', UserInfo); // User info routes
+app.use('/api/parking', parkingRoutes); // Parking routes
+app.use('/api/bookings', bookingRoutes); // Booking routes
 
-
-
-// Example of protected route (using authMiddleware)
+// Example of a protected route (using authMiddleware)
 app.get('/api/protected', authMiddleware, (req, res) => {
   res.json({ message: `This is protected, userId: ${req.user}` });
 });
 
-//keepers data routes
+// Keepers data routes
 app.use('/api/keepers', keepersRoutes);
 
 // MongoDB connection
@@ -53,9 +46,15 @@ mongoose.connect(process.env.MONGO_URI, {
 
 // Default route
 app.get('/', (req, res) => {
-  res.send('Welcome to the Car Parking Backend. oh yes');
+  res.send('Welcome to the Car Parking Backend!');
 });
 
+// Global error handler (for unhandled errors)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+});
 
+// Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

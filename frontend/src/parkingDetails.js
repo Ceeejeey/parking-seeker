@@ -8,89 +8,88 @@ const ParkingDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [popupDetails, setPopupDetails] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
+
+  const fetchParkingLogs = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/parking/park');
+      const logs = response.data;
+
+      // Include `stopped` records and format timestamps
+      const formattedLogs = logs.map((log) => ({
+        ...log,
+        startTime: new Date(log.startTime).toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }),
+        stopTime: log.stopTime
+          ? new Date(log.stopTime).toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })
+          : null, // Show null for active records
+      }));
+
+      setParkingDetails(formattedLogs);
+    } catch (err) {
+      console.error('Error fetching parking logs:', err);
+      setError('Failed to fetch parking logs. Please try again.');
+    }
+  };
 
   useEffect(() => {
-    const fetchParkingDetails = async () => {
+    const fetchInitialData = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/parking/park'); // Replace with your actual endpoint
-        setParkingDetails(response.data);
+        await fetchParkingLogs();
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching parking details:', err);
-        setError('Failed to fetch parking details. Please try again.');
+        console.error('Error fetching initial data:', err);
+        setError('Failed to load parking details. Please try again.');
         setLoading(false);
       }
     };
 
-    fetchParkingDetails();
+    fetchInitialData();
   }, []);
-
-  const formatTime = (timeString) => {
-    try {
-      const date = new Date(timeString);
-      return new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: true,
-      }).format(date);
-    } catch (error) {
-      console.error('Error formatting time:', error);
-      return 'Invalid Time';
-    }
-  };
 
   const calculatePrice = (startTime, vehicleType) => {
     const start = new Date(startTime);
     const end = new Date();
-    const duration = Math.ceil((end - start) / (1000 * 60 * 60));
+    const duration = Math.ceil((end - start) / (1000 * 60 * 60)); // Hours
     const price = vehicleType === 'car' ? duration * 100 : vehicleType === 'bike' ? duration * 50 : 0;
     return { duration, price };
   };
 
-  const handleStop = (index) => {
+  const handleStop = async (index) => {
     const detail = parkingDetails[index];
     const { duration, price } = calculatePrice(detail.startTime, detail.vehicleType);
 
-    setPopupDetails({
-      ...detail,
-      duration,
-      price,
-      index,
-    });
-  };
+    try {
+      const stopTime = new Date().toISOString();
+      const updatedDetail = { ...detail, stopTime, duration, price };
 
-  const confirmStop = () => {
-    const { index, duration, price } = popupDetails;
+      // Update the record on the server
+      await axios.put(`http://localhost:5000/api/parking/park/${detail._id}`, updatedDetail);
 
-    setParkingDetails((prevDetails) =>
-      prevDetails.map((detail, i) =>
-        i === index ? { ...detail, duration, price } : detail
-      )
-    );
+      // Update the frontend state
+      setParkingDetails((prevDetails) =>
+        prevDetails.map((item, i) => (i === index ? updatedDetail : item))
+      );
 
-    setPopupDetails(null);
+      // Show popup with details
+      setPopupDetails(updatedDetail);
+      setShowPopup(true);
+    } catch (err) {
+      console.error('Error stopping timer:', err);
+      alert('Failed to stop timer. Please try again.');
+    }
   };
 
   const removeRecord = async (index) => {
     const detailToRemove = parkingDetails[index];
 
     try {
-      const { username, vehicleType, startTime } = detailToRemove;
-      const stopTime = new Date().toISOString();
-      const { duration, price } = detailToRemove;
-
-      const archiveData = {
-        username,
-        vehicleType,
-        startTime,
-        stopTime,
-        duration,
-        price,
-      };
-
-      await axios.post('http://localhost:5000/api/parking/archive', archiveData);
       await axios.delete(`http://localhost:5000/api/parking/park/${detailToRemove._id}`);
-
       const updatedDetails = parkingDetails.filter((_, i) => i !== index);
       setParkingDetails(updatedDetails);
     } catch (err) {
@@ -101,19 +100,31 @@ const ParkingDetails = () => {
 
   const downloadLogs = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/parking/log', {
+      const response = await axios.get('http://localhost:5000/api/parking/logs', {
         responseType: 'json',
       });
-
       const logs = response.data;
 
-      const worksheet = XLSX.utils.json_to_sheet(logs);
+      const formattedLogs = logs.map((log) => ({
+        ...log,
+        startTime: new Date(log.startTime).toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }),
+        stopTime: log.stopTime
+          ? new Date(log.stopTime).toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })
+          : 'N/A',
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(formattedLogs);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Parking Logs');
-
       XLSX.writeFile(workbook, 'ParkingLogs.xlsx');
     } catch (err) {
-      console.error('Error fetching logs:', err);
+      console.error('Error downloading logs:', err);
       alert('Failed to download logs. Please try again.');
     }
   };
@@ -124,6 +135,10 @@ const ParkingDetails = () => {
 
   const viewBookingDetails = () => {
     window.location.href = '/bookingDetails';
+  };
+
+  const closePopup = () => {
+    setShowPopup(false);
   };
 
   if (loading) {
@@ -160,18 +175,18 @@ const ParkingDetails = () => {
             <tr key={index}>
               <td>{detail.username}</td>
               <td>{detail.vehicleType}</td>
-              <td>{formatTime(detail.startTime)}</td>
+              <td>{detail.startTime}</td>
               <td>
-                {!detail.duration ? (
-                  <button className="stop-button" onClick={() => handleStop(index)}>Stop</button>
-                ) : (
+                {detail.stopTime ? (
                   'Stopped'
+                ) : (
+                  <button className="stop-button" onClick={() => handleStop(index)}>Stop</button>
                 )}
               </td>
               <td>{detail.duration ? `${detail.duration} Hours` : 'N/A'}</td>
               <td>{detail.price || 'N/A'}</td>
               <td>
-                {detail.duration && (
+                {detail.stopTime && (
                   <button className="remove-button" onClick={() => removeRecord(index)}>Remove</button>
                 )}
               </td>
@@ -180,15 +195,21 @@ const ParkingDetails = () => {
         </tbody>
       </table>
 
-      {popupDetails && (
+      {/* Popup for displaying parking details */}
+      {showPopup && (
         <div className="popup">
           <div className="popup-content">
-            <h3>Parking Details</h3>
-            <p>User Name: {popupDetails.username}</p>
-            <p>Vehicle Type: {popupDetails.vehicleType}</p>
-            <p>Parked Time: {popupDetails.duration} Hours</p>
-            <p>Total Price: {popupDetails.price} LKR</p>
-            <button onClick={confirmStop}>Done</button>
+            <h2>Parking Details</h2>
+            <p><strong>Username:</strong> {popupDetails.username}</p>
+            <p><strong>Vehicle Type:</strong> {popupDetails.vehicleType}</p>
+            <p><strong>Start Time:</strong> {popupDetails.startTime}</p>
+            <p><strong>Stop Time:</strong> {popupDetails.stopTime ? new Date(popupDetails.stopTime).toLocaleString('en-US', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            }) : 'N/A'}</p>
+            <p><strong>Duration:</strong> {popupDetails.duration} Hours</p>
+            <p><strong>Price:</strong> ${popupDetails.price}</p>
+            <button onClick={closePopup}>Close</button>
           </div>
         </div>
       )}
