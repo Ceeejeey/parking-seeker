@@ -21,6 +21,7 @@ const HomePage = () => {
   const [vehicleType, setVehicleType] = useState("Car"); // Track selected vehicle type
   const [parkingAvailability, setParkingAvailability] = useState(null);
   const [markers, setMarkers] = useState([]); // To track and clear markers dynamically
+  const parkingCenter = [81.21377704290875, 8.654605843273439]; // Circle center coordinate
 
   const fetchParkingAvailability = async () => {
     try {
@@ -115,7 +116,14 @@ const HomePage = () => {
         },
       });
     });
-    
+    new mapboxgl.Marker({ color: '#008000' }) // Green marker
+    .setLngLat(parkingCenter)
+    .setPopup(
+      new mapboxgl.Popup().setHTML('<h3>Parking Center</h3><p>This is the center of the parking area.</p>')
+    )
+    .addTo(map);
+
+  console.log('Parking circle and layers added.');
 
     // Clean up the map on unmount
     return () => map.remove();
@@ -210,10 +218,11 @@ const HomePage = () => {
             'line-opacity': 0.75,
           },
         });
+        
       })
       .catch((error) => console.error('Error fetching directions:', error));
   };
-
+  
   // Function to show the user's current location
 const showCurrentLocation = () => {
     navigator.geolocation.getCurrentPosition(

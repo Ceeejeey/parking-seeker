@@ -28,7 +28,7 @@ const HomePage = () => {
   // Hardcoded user location inside park 
   const userLocation = [81.21377366005822, 8.654610816180755]; 
   // Hardcoded user location inside circle
- // const userLocation = [81.21360098376982, 8.654650313807098];
+ //const userLocation = [81.21360098376982, 8.654650313807098];
   const [user, setUser] = useState(null);
   const location = useLocation();
   const [error, setError] = useState(null);
@@ -37,6 +37,36 @@ const HomePage = () => {
   const timerRef = useRef(null);
   const [firstTimerEnded, setFirstTimerEnded] = useState(false);
   const { token, bookingDetails } = location.state || {};
+
+
+  useEffect(() => {
+    const checkForActiveParking = async () => {
+      const parkingRecords = await fetchParkingRecords();
+  
+      // Check if there are any active parking records
+      if (parkingRecords && parkingRecords.length > 0) {
+        console.log('Active parking record found:', parkingRecords);
+        clearExistingTimer(); // Stop the timer if an active parking record exists
+      } else {
+        console.log('No active parking record found.');
+      }
+    };
+  
+    checkForActiveParking();
+  }, []);
+  
+  const fetchParkingRecords = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/parking/park', {
+        headers: { Authorization: `Bearer ${token}` }, // Add authorization header if needed
+      });
+      return response.data; // Assuming the backend sends an array of parking records
+    } catch (error) {
+      console.error('Error fetching parking records:', error);
+      return [];
+    }
+  };
+  
 
   // Fetch user data from backend
   useEffect(() => {
@@ -512,25 +542,29 @@ const HomePage = () => {
           .setDOMContent(popupContent)
           .addTo(map);
 
-        popupContent.querySelector('#park-button').addEventListener('click', async () => {
-          try {
-            const { _id, username, vehicleType } = activeBooking;
-
-            await axios.post('http://localhost:5000/api/parking/park', {
-              _id,
-              username,
-              vehicleType,
-              startTime: new Date(),
-
-            });
-
-            alert('Parked successfully');
-            popup.remove();
-          } catch (error) {
-            console.error('Error parking vehicle:', error);
-            alert('Failed to park vehicle.');
-          }
-        });
+          popupContent.querySelector('#park-button').addEventListener('click', async () => {
+            try {
+              const { _id, username, vehicleType } = activeBooking;
+          
+              await axios.post('http://localhost:5000/api/parking/park', {
+                _id,
+                username,
+                vehicleType,
+                startTime: new Date(),
+              });
+          
+              alert('Parked successfully');
+              popup.remove();
+          
+              // Stop and hide the timer
+              clearExistingTimer(); // This function clears the timer and resets state
+              console.log('Timer stopped and hidden after parking.');
+            } catch (error) {
+              console.error('Error parking vehicle:', error);
+              alert('Failed to park vehicle.');
+            }
+          });
+          
 
         popupContent.querySelector('#leave-button').addEventListener('click', () => {
           popup.remove();
