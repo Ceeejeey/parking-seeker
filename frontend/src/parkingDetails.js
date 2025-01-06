@@ -208,7 +208,7 @@ const ParkingDetails = () => {
               timeStyle: 'short',
             }) : 'N/A'}</p>
             <p><strong>Duration:</strong> {popupDetails.duration} Hours</p>
-            <p><strong>Price:</strong> ${popupDetails.price}</p>
+            <p><strong>Price:</strong> {popupDetails.price} LKR</p>
             <button onClick={closePopup}>Close</button>
           </div>
         </div>
