@@ -2,16 +2,33 @@ import React, { useEffect, useState } from 'react';
 import './keepers.css';
 
 const KeepersPage = () => {
-  const TOTAL_SPACES = { cars: 3, bike: 4 }; // Hardcoded total spaces
+  const TOTAL_SPACES = { cars: 0, bike: 4}; // Hardcoded total spaces
 
   // State to hold vehicle counts
   const [vehicleData, setVehicleData] = useState({
     parked: { cars: 0, bike: 0 },
     booked: { cars: 0, bike: 0 },
-    remain: { cars: 3, bike: 4 }, // Initially set to total spaces
+    remain: { cars: TOTAL_SPACES.cars, bike: TOTAL_SPACES.bike },
   });
 
   const [availability, setAvailability] = useState({ cars: true, bike: true });
+
+  // Function to update availability in the database
+  const updateAvailabilityInDatabase = async (availabilityData) => {
+    try {
+      await fetch('http://localhost:5000/api/keepers/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+           
+        },
+        body: JSON.stringify(availabilityData),
+      });
+      console.log('Availability updated successfully:', availabilityData);
+    } catch (error) {
+      console.error('Error updating availability in the database:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchVehicleData = async () => {
@@ -24,17 +41,18 @@ const KeepersPage = () => {
         const bookedResponse = await fetch('http://localhost:5000/api/bookings/booking');
         const bookedData = await bookedResponse.json();
 
-        // Count parked cars and bike
+        // Count parked cars and bikes
         const parkedCars = parkedData.filter((item) => item.vehicleType === 'car').length;
         const parkedBike = parkedData.filter((item) => item.vehicleType === 'bike').length;
 
-        // Count booked cars and bike
+        // Count booked cars and bikes
         const bookedCars = bookedData.filter((item) => item.vehicleType === 'car').length;
         const bookedBike = bookedData.filter((item) => item.vehicleType === 'bike').length;
 
         // Calculate remaining spaces
-        const remainCars = TOTAL_SPACES.cars - (parkedCars + bookedCars);
-        const remainBike = TOTAL_SPACES.bike - (parkedBike + bookedBike);
+    const remainCars = Math.max(TOTAL_SPACES.cars - (parkedCars + bookedCars), 0); // Ensure no negative values
+    const remainBike = Math.max(TOTAL_SPACES.bike - (parkedBike + bookedBike), 0);
+
 
         // Update state with fetched data
         setVehicleData({
@@ -43,11 +61,16 @@ const KeepersPage = () => {
           remain: { cars: remainCars, bike: remainBike },
         });
 
-        // Update availability
-        setAvailability({
+        // Update availability state and database
+        const updatedAvailability = {
           cars: remainCars > 0,
           bike: remainBike > 0,
-        });
+        };
+
+        setAvailability(updatedAvailability);
+
+        // Send updated availability to the database
+        await updateAvailabilityInDatabase(updatedAvailability);
       } catch (error) {
         console.error('Error fetching vehicle data:', error);
       }

@@ -26,9 +26,9 @@ const HomePage = () => {
     [81.2137241883712, 8.654607792719089],
   ];
   // Hardcoded user location inside park 
-  const userLocation = [81.21377366005822, 8.654610816180755]; 
+  const userLocation = [81.21377366005822, 8.654610816180755];
   // Hardcoded user location inside circle
- //const userLocation = [81.21360098376982, 8.654650313807098];
+  //const userLocation = [81.21360098376982, 8.654650313807098];
   const [user, setUser] = useState(null);
   const location = useLocation();
   const [error, setError] = useState(null);
@@ -39,10 +39,12 @@ const HomePage = () => {
   const { token, bookingDetails } = location.state || {};
 
 
+  
+
   useEffect(() => {
     const checkForActiveParking = async () => {
       const parkingRecords = await fetchParkingRecords();
-  
+
       // Check if there are any active parking records
       if (parkingRecords && parkingRecords.length > 0) {
         console.log('Active parking record found:', parkingRecords);
@@ -51,10 +53,10 @@ const HomePage = () => {
         console.log('No active parking record found.');
       }
     };
-  
+
     checkForActiveParking();
   }, []);
-  
+
   const fetchParkingRecords = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/parking/park', {
@@ -66,7 +68,7 @@ const HomePage = () => {
       return [];
     }
   };
-  
+
 
   // Fetch user data from backend
   useEffect(() => {
@@ -419,13 +421,58 @@ const HomePage = () => {
         },
       });
 
-      // Add a green marker at the center of the circle
-      new mapboxgl.Marker({ color: '#008000' }) // Green marker
-        .setLngLat(parkingCenter)
-        .setPopup(
-          new mapboxgl.Popup().setHTML('<h3>Parking Center</h3><p>This is the center of the parking area.</p>')
-        )
-        .addTo(map);
+      // Function to fetch availability and set the marker
+    const setParkingMarker = async (vehicle) => {
+      try {
+        const response = await fetch('http://localhost:5000/api/keepers/update'); // Endpoint for availability
+        const availability = await response.json();
+
+        // Determine marker color based on selected vehicle type
+        let markerColor = '#FF0000'; // Default to red
+        if (vehicle === 'car') {
+          markerColor = availability.cars ? '#008000' : '#FF0000';
+        } else if (vehicle === 'bike') {
+          markerColor = availability.bike ? '#008000' : '#FF0000';
+        }
+
+        // Remove existing marker if any
+        if (mapRef.current.marker) {
+          mapRef.current.marker.remove();
+        }
+
+        // Add new marker
+        const marker = new mapboxgl.Marker({ color: markerColor })
+          .setLngLat(parkingCenter)
+          .setPopup(
+            new mapboxgl.Popup().setHTML(`
+            <h3>Parking Center</h3>
+            <p>
+              Vehicle Type: ${vehicleType}<br>
+              Availability: ${vehicleType === 'car'
+                ? availability.cars
+                  ? 'Yes'
+                  : 'No'
+                : availability.bike
+                  ? 'Yes'
+                  : 'No'
+              }
+            </p>
+          `)
+          )
+          .addTo(mapRef.current);
+
+        // Store the marker for future updates
+        mapRef.current.marker = marker;
+      } catch (error) {
+        console.error('Error fetching parking data:', error);
+      }
+    };
+
+    setParkingMarker(vehicleType); // Initial run
+
+    const intervalId = setInterval(() => {
+      setParkingMarker(vehicleType);  // Refresh marker every 30 seconds
+    }, 1000000);
 
       console.log('Parking circle and layers added.');
 
@@ -542,44 +589,50 @@ const HomePage = () => {
           .setDOMContent(popupContent)
           .addTo(map);
 
-          popupContent.querySelector('#park-button').addEventListener('click', async () => {
-            try {
-              const { _id, username, vehicleType } = activeBooking;
-          
-              await axios.post('http://localhost:5000/api/parking/park', {
-                _id,
-                username,
-                vehicleType,
-                startTime: new Date(),
-              });
-          
-              alert('Parked successfully');
-              popup.remove();
-          
-              // Stop and hide the timer
-              clearExistingTimer(); // This function clears the timer and resets state
-              console.log('Timer stopped and hidden after parking.');
-            } catch (error) {
-              console.error('Error parking vehicle:', error);
-              alert('Failed to park vehicle.');
-            }
-          });
-          
+        popupContent.querySelector('#park-button').addEventListener('click', async () => {
+          try {
+            const { _id, username, vehicleType } = activeBooking;
+
+            await axios.post('http://localhost:5000/api/parking/park', {
+              _id,
+              username,
+              vehicleType,
+              startTime: new Date(),
+            });
+
+            alert('Parked successfully');
+            popup.remove();
+
+            // Stop and hide the timer
+            clearExistingTimer(); // This function clears the timer and resets state
+            console.log('Timer stopped and hidden after parking.');
+          } catch (error) {
+            console.error('Error parking vehicle:', error);
+            alert('Failed to park vehicle.');
+          }
+        });
+
 
         popupContent.querySelector('#leave-button').addEventListener('click', () => {
           popup.remove();
         });
       }
-
+      return () => {
+        
+        clearInterval(intervalId);
+      };
 
     });
 
 
     return () => {
+     
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
-      }
+        
+      };
+
     };
   }, [vehicleType, user]); // Dependency array includes vehicleType
 
