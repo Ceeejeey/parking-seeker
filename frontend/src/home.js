@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -10,7 +10,7 @@ import userIcon from './icons/user.png';
 import myLocationIcon from './icons/my_location.png';
 import directionIcon from './icons/direction.png';
 
-mapboxgl.accessToken = 'pk.eyJ1Ijoic2hhbmFrYTA1MzAiLCJhIjoiY20xdWExbDVkMGJ1YTJsc2J6bjFmaTVkNyJ9.H4sWjz4eIt0e6jeScvR5-g'; 
+mapboxgl.accessToken = 'pk.eyJ1Ijoic2hhbmFrYTA1MzAiLCJhIjoiY20xdWExbDVkMGJ1YTJsc2J6bjFmaTVkNyJ9.H4sWjz4eIt0e6jeScvR5-g';
 
 const HomePage = () => {
   const navigate = useNavigate(); // Initialize the useNavigate hook
@@ -79,13 +79,7 @@ const HomePage = () => {
       // Remove previous direction marker if it exists
       if (directionMarker) directionMarker.remove();
 
-      // Create a new marker at the clicked position
-      const newDirectionMarker = new mapboxgl.Marker({ element: createDirectionIcon() })
-        .setLngLat([lng, lat])
-        .addTo(map);
-
-      // Set the new direction marker and clicked location
-      setDirectionMarker(newDirectionMarker);
+     
     });
 
     map.on('load', () => {
@@ -93,7 +87,7 @@ const HomePage = () => {
         type: 'geojson',
         data: parkingArea,
       });
-    
+
       map.addLayer({
         id: 'parkingAreaLayer',
         type: 'fill',
@@ -104,7 +98,7 @@ const HomePage = () => {
           'fill-opacity': 0.5,
         },
       });
-    
+
       map.addLayer({
         id: 'parkingAreaBorder',
         type: 'line',
@@ -116,18 +110,68 @@ const HomePage = () => {
         },
       });
     });
-    new mapboxgl.Marker({ color: '#008000' }) // Green marker
-    .setLngLat(parkingCenter)
-    .setPopup(
-      new mapboxgl.Popup().setHTML('<h3>Parking Center</h3><p>This is the center of the parking area.</p>')
-    )
-    .addTo(map);
+    // Function to fetch availability and set the marker
+    const setParkingMarker = async (vehicle) => {
+      try {
+        const response = await fetch('http://localhost:5000/api/keepers/update'); // Endpoint for availability
+        const availability = await response.json();
 
-  console.log('Parking circle and layers added.');
+        // Determine marker color based on selected vehicle type
+        let markerColor = '#FF0000'; // Default to red
+        if (vehicle === 'Car') {
+          markerColor = availability.cars ? '#008000' : '#FF0000';
+        } else if (vehicle === 'Motorcycle') {
+          markerColor = availability.bike ? '#008000' : '#FF0000';
+        }
+
+        // Remove existing marker if any
+        if (mapRef.current.marker) {
+          mapRef.current.marker.remove();
+        }
+
+        // Add new marker
+        const marker = new mapboxgl.Marker({ color: markerColor })
+          .setLngLat(parkingCenter)
+          .setPopup(
+            new mapboxgl.Popup().setHTML(`
+            <h3>Parking Center</h3>
+            <p>
+              Vehicle Type: ${vehicleType}<br>
+              Availability: ${vehicleType === 'Car'
+                ? availability.cars
+                  ? 'Yes'
+                  : 'No'
+                : availability.bike
+                  ? 'Yes'
+                  : 'No'
+              }
+            </p>
+          `)
+          )
+          .addTo(mapRef.current);
+
+        // Store the marker for future updates
+        mapRef.current.marker = marker;
+      } catch (error) {
+        console.error('Error fetching parking data:', error);
+      }
+    };
+
+    setParkingMarker(vehicleType); // Initial run
+
+    const intervalId = setInterval(() => {
+      setParkingMarker(vehicleType);  // Refresh marker every 30 seconds
+    }, 30000);
+    console.log('Parking circle and layers added.');
 
     // Clean up the map on unmount
-    return () => map.remove();
-  }, [directionMarker]);
+    return () => {
+      map.remove();
+      clearInterval(intervalId);
+    }
+  }, [vehicleType]);
+
+
 
   // Update markers when the vehicle type changes
   useEffect(() => {
@@ -143,18 +187,20 @@ const HomePage = () => {
       return new mapboxgl.Marker({
         color: isAvailable ? 'green' : 'red',
       })
-      .setLngLat(spot.coordinates)
-      .addTo(mapRef.current);
+        .setLngLat(spot.coordinates)
+        .addTo(mapRef.current);
     });
 
     console.log("Parking Availability:", parkingAvailability);
 
     setMarkers(newMarkers);
-  }, [vehicleType, parkingAvailability]); // Runs whenever `vehicleType` or `parkingAvailability` changes
+
+  }, [parkingAvailability, vehicleType]); // Runs whenever `vehicleType` or `parkingAvailability` changes
 
   const handleVehicleTypeChange = (event) => {
     setVehicleType(event.target.value);
   };
+
 
   // Function to create the direction icon element
   const createDirectionIcon = () => {
@@ -218,26 +264,26 @@ const HomePage = () => {
             'line-opacity': 0.75,
           },
         });
-        
+
       })
       .catch((error) => console.error('Error fetching directions:', error));
   };
-  
+
   // Function to show the user's current location
-const showCurrentLocation = () => {
+  const showCurrentLocation = () => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-  
+
         // Create a marker for the user's current location
         new mapboxgl.Marker({ color: '#FF0000' }) // Red marker for user's location
           .setLngLat([longitude, latitude])
           .addTo(mapRef.current);
-  
+
         // Center the map on the user's location
         mapRef.current.setCenter([longitude, latitude]);
         mapRef.current.setZoom(14); // Adjust zoom level as needed
-  
+
         // Update start location for routing
         setStartLocation([longitude, latitude]);
       },
@@ -246,6 +292,7 @@ const showCurrentLocation = () => {
       }
     );
   };
+
 
   const parkingArea = {
     type: 'Feature',
@@ -265,7 +312,7 @@ const showCurrentLocation = () => {
       name: 'Parking Area'
     }
   };
-  
+
   return (
     <div className="homepage">
       <div className="sidebar">
